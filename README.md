@@ -1,4 +1,4 @@
-# EOS 4.71-beta2 build 2 for the E-mu E4 Ultra
+# EOS 4.71-beta2 build 3 for the E-mu E4 Ultra
 
 An unofficial update of E-mu's **EOS 4.70** for the Emulator IV family **Ultra** models, made by reverse
 engineering the 4.70 firmware and testing every change in an emulator and on a real E4 Ultra.
@@ -7,10 +7,15 @@ engineering the 4.70 firmware and testing every change in an emulator and on a r
 [EOS 4.71-beta2 Operation Manual Addendum](docs/EOS-4.71-beta-Addendum.md),
 [PDF](docs/EOS-4.71-beta-Addendum.pdf)):
 
+**New in build 3:** E-mu's own filters are back (after multiple tests and retuning, the OB-Xa filter models
+offered too little at too much cost), and five **Fuzz filters** join the end of the filter list: 2 Pole LP+Fuzz,
+4 Pole LP+Fuzz (unchanged), 2nd Ord HP+Fuzz, 2nd Ord BP+Fuzz and Contrary BP+Fuzz. **Be mindful of gain: the
+Fuzz filters get LOUD.** Presets from the earlier betas that used the OB-Xa models now play E-mu's filters. See
+the [CHANGELOG](CHANGELOG.md).
+
 **New in 4.71-beta2:**
 
-- **4 Pole LP+Fuzz** filter: the OB-Xa ladder driven into the filter chip's overload (Q = fuzz), plus smooth
-  resonance steps on all OB-Xa filters.
+- **4 Pole LP+Fuzz** filter: a 4-pole ladder driven into the filter chip's overload (Q = fuzz).
 - **Beat Munger Slice**: turns a drum loop into one sample per hit and a preset with each slice on its own key
   (cuts placed just before each hit, snapped to a zero crossing).
 - **'Slice** cord destination: plays equal slices of one sample, one per key.
@@ -18,14 +23,13 @@ engineering the 4.70 firmware and testing every change in an emulator and on a r
 - **WTScan** (renamed from SLpScn): notes start at the loop, fast moves glide instead of bursting.
 - **Balanced pan centre** (4.70 and 4.71-beta were about 0.24 dB right-heavy).
 
-**New in build 2:** the 2nd and 4th Order High-pass turn their level down as Q rises (up to −5.9 / −11.8 dB at
-Q 127), so high-Q settings no longer run into the filter chip's clipping point, and the 4 Pole LP+Fuzz level follows
-Q smoothly. See the [CHANGELOG](CHANGELOG.md).
+**New in build 2:** the 4 Pole LP+Fuzz level follows Q smoothly. (Build 2's high-pass level trim belonged to the
+OB-Xa models and is gone with them in build 3.)
 
 **From 4.71-beta:**
 
-- **OB-Xa (CEM3320) filter models** for the 2/4/6-pole lowpasses, 2nd/4th-order high-pass and band-pass,
-  with cutoffs that follow the display.
+- **OB-Xa (CEM3320) filter models** (4.71-beta to build 2; build 3 returns to E-mu's own filters and uses the
+  OB-Xa models only inside the Fuzz filters).
 - **Tempo-synced LFOs** (4 bars … 1/32, Key Sync or Free Run) and a new **saw down** LFO shape.
 - **Transwave scanning**: new cord destination **WTScan** (SLpScn in 4.71-beta) moves the sample loop through a wavetable
   ([sample guide](docs/transwave-guide.md)).
@@ -40,8 +44,8 @@ Q smoothly. See the [CHANGELOG](CHANGELOG.md).
 
 ## Get it
 
-E-mu's firmware is not distributed here. The **EOS Flasher** app builds 4.71-beta2 (or the earlier 4.71-beta)
-from your own copy of
+E-mu's firmware is not distributed here. The **EOS Flasher** app builds 4.71-beta2 build 3 (or build 2, or the
+earlier 4.71-beta) from your own copy of
 E-mu's update file **EOS470.EXE** (it verifies the file is the original 4.70, applies this project's
 patch and verifies the result) and sends it to the E4 over MIDI.
 
@@ -49,7 +53,7 @@ Downloads (see [Releases](../../releases)):
 
 | App | macOS 11+ (universal: Apple silicon + Intel) | macOS 10.13 High Sierra+ (Intel) | Windows | Linux (Flatpak, x86_64) |
 |---|---|---|---|---|
-| **EOS Flasher**: build 4.71-beta2 (or 4.71-beta, or the original 4.70) and flash it over MIDI | `EOS-Flasher-macOS-universal.zip` | `EOS-Flasher-macOS-HighSierra-Intel.zip` | `EOS-Flasher-Windows.zip` | `EOS-Flasher-Linux-x86_64.flatpak` |
+| **EOS Flasher**: build 4.71-beta2 build 3 (or build 2, 4.71-beta, or the original 4.70) and flash it over MIDI | `EOS-Flasher-macOS-universal.zip` | `EOS-Flasher-macOS-HighSierra-Intel.zip` | `EOS-Flasher-Windows.zip` | `EOS-Flasher-Linux-x86_64.flatpak` |
 | **EOS Pan Test**: measure the pan bug on your E4 and report results | `EOS-PanTest-macOS-universal.zip` | `EOS-PanTest-macOS-HighSierra-Intel.zip` | `EOS-PanTest-Windows.zip` | `EOS-PanTest-Linux-x86_64.flatpak` |
 
 The apps are not signed with an Apple or Microsoft developer certificate, so the first launch needs one extra
@@ -89,10 +93,10 @@ flatpak run io.github.rfidmusic.EOSFlasher
 ### Flash EOS 4.71-beta2
 
 1. Connect a MIDI interface **both ways** to the E4 (the loader acknowledges every packet).
-2. Start **EOS Flasher**, choose your **EOS470.EXE**, select **EOS 4.71-beta2 build 2**, press **Build**.
+2. Start **EOS Flasher**, choose your **EOS470.EXE**, select **EOS 4.71-beta2 build 3**, press **Build**.
 3. Select the MIDI output and input, press **Send to E4**.
 4. Power on the E4 holding **Enter**, answer **Yes** to "Download OS from MIDI?".
-5. After about 9 minutes answer **Yes** to "Burn to flash?". The startup screen shows **EOS 4.71-beta2 build 2**.
+5. After about 9 minutes answer **Yes** to "Burn to flash?". The startup screen shows **EOS 4.71-beta2 build 3**.
 
 To go back, do the same with **Original EOS 4.70**.
 
@@ -113,7 +117,8 @@ To go back, do the same with **Original EOS 4.70**.
 | Path | Contents |
 |---|---|
 | `apps/` | Rust apps: `eos-flasher`, `eos-pantest`, shared `eos-core` (codec, patch, MIDI File Dump, editor SysEx) |
-| `apps/eos-core/data/eos471beta2.e4p` | The 4.71-beta2 patch: only the 7,165 bytes this project wrote, applied to your own 4.70 |
+| `apps/eos-core/data/eos471beta2b3.e4p` | The build 3 patch: the 6,597 bytes this project wrote, plus steps that copy E-mu code it moves within your own 4.70 |
+| `apps/eos-core/data/eos471beta2.e4p` | The build 2 patch: only the 7,165 bytes this project wrote, applied to your own 4.70 |
 | `apps/eos-core/data/eos471beta.e4p` | The 4.71-beta patch (3,232 bytes) |
 | `patches/` | Assembler sources (ColdFire) of every change |
 | `tools/` | Python builders, emulator test suites, hardware test scripts, MIDI File Dump tool |

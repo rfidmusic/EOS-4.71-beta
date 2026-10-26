@@ -10,6 +10,10 @@ usage: hw_filter_fr.py OUTDIR TYPES CUTS QS [--fast]   (comma lists of menu inde
   e.g. hw_filter_fr.py recordings/fr 21 0,64,128,192,255 0,32,64,96,127
   --fast: the 6 s sweep (testsignals/sweep_20Hz-20kHz_6s_-12dBFS.wav, loaded on key 81 = A4) instead of the
           20 s sweep on key 77; analyse with lpfuzz_fr_analyze using T = 6
+  --fuzz8: Fuzz8 test firmware names for menu 21-28 (fz2p fz4p fz6p fzhp2 fzhp4 fzbp2 fzbp4 fzcbp)
+  --fuzz6: Fuzz6 test firmware names for menu 21-26 (fz2p fz4p fz6p fzhp2 fzbp2 fzcbp)
+  --fuzzob: FuzzOB test firmware names for menu 21-25 (fob2p fob4p fobhp2 fobbp2 fobcbp; 22 = the original LP+Fuzz)
+  --sw N: set parameter 195 (the Fuzz test switch) to N first (default: leave it)
 """
 import json, math, os, sys, time
 import numpy as np, mido, sounddevice as sd
@@ -21,6 +25,9 @@ import hw_burst_test as hb       # noqa: E402
 from hw_freqresp import play, FILT_CORD_AMTS, REF_TYPE, REF_Q, NAMES   # noqa: E402
 
 NAMES = {**NAMES, 21: 'lpfuzz'}
+FUZZ8 = {21: 'fz2p', 22: 'fz4p', 23: 'fz6p', 24: 'fzhp2', 25: 'fzhp4', 26: 'fzbp2', 27: 'fzbp4', 28: 'fzcbp'}
+FUZZ6 = {21: 'fz2p', 22: 'fz4p', 23: 'fz6p', 24: 'fzhp2', 25: 'fzbp2', 26: 'fzcbp'}
+FUZZOB = {21: 'fob2p', 22: 'fob4p', 23: 'fobhp2', 24: 'fobbp2', 25: 'fobcbp'}
 
 
 def main():
@@ -28,6 +35,12 @@ def main():
     types, cuts, qs = ([int(v) for v in a.split(',')] for a in sys.argv[2:5])
     if '--fast' in sys.argv:
         fr.KEY, fr.DUR = 81, 6.5
+    if '--fuzz8' in sys.argv:
+        NAMES.update(FUZZ8)
+    if '--fuzz6' in sys.argv:
+        NAMES.update(FUZZ6)
+    if '--fuzzob' in sys.argv:
+        NAMES.update(FUZZOB)
     os.makedirs(out, exist_ok=True)
     dev = hb.device()
     e = er.Eos()
@@ -36,6 +49,9 @@ def main():
     for c in FILT_CORD_AMTS:
         e.set(c, 0)
     e.set(41, 0)
+    if '--sw' in sys.argv:
+        e.set(195, int(sys.argv[sys.argv.index('--sw') + 1])); time.sleep(0.1)
+        print('switch (parameter 195) =', e.get([195]), flush=True)
     sweep_s = 6.0 if '--fast' in sys.argv else 20.0
     # warm-up: the first note after the setup above can come out low (3.4 dB in the A/B run); discard it
     e.set(82, REF_TYPE); e.set(83, 128); e.set(84, REF_Q); time.sleep(0.2)

@@ -107,10 +107,10 @@ def asm(d, src, obj):
     subprocess.run([BIN + 'm68k-elf-as', '-mcpu=5206e', '-o', obj, src], check=True, cwd=d)
 
 
-def build(base, out, probe=False, slew=True):
+def build(base, out, probe=False, slew=True, origfilt=False, name=None, nfz=0):
     with tempfile.TemporaryDirectory() as td:
         rel = os.path.join(td, 'rel.bin')
-        syms_l = build_lpfuzz.build(base, rel, NAME, release=True)
+        syms_l = build_lpfuzz.build(base, rel, NAME, release=True, origfilt=origfilt, nfz=nfz)
         img = bytearray(open(rel, 'rb').read())
     F = ((syms_l['end_of_ctor'] + 1) & ~1, REGION_END)
     # ---- the holes must be what we proved ----
@@ -164,10 +164,13 @@ def build(base, out, probe=False, slew=True):
                  ('.blkV48', V48, [(po, '.prb'), (lo_, '.slP')]), ('.blkU', U48, [(po, '.prbio')])]
     else:
         place = [('.blkA', A, [(lo_, '.slA')]), ('.blkB', B_, [(lo_, '.slB'), (so, '.silwrap')]),
-                 ('.blkC', C, [(so, '.silstr')]), ('.blkF', F, [(so, '.silh'), (lo_, '.slF'), (lo_, '.slT'), (lo_, '.slS')]),
+                 ('.blkC', C, [(so, '.silstr')]),
+                 ('.blkF', F, [(so, '.silh'), (lo_, '.slF')] + ([] if origfilt else [(lo_, '.slT')]) + [(lo_, '.slS')]),
                  ('.blkV48', V48, [(so, '.silx1'), (lo_, '.slP')]), ('.blkU', U48, [(so, '.silx2')]),
                  ('.blkV16', V16, [(so, '.silx3')])]
-    place.append(('.blkPM', PM, [(pm, '.pm')] + ([] if probe else [(sr, '.slcx')]) + [(hg, '.hpg')]))
+    # origfilt: the ctor's filter list grows by 18 bytes, so the tick hook .slT moves from .blkF to .blkPM
+    place.append(('.blkPM', PM, [(pm, '.pm')] + ([] if probe else [(sr, '.slcx')]) + [(hg, '.hpg')]
+                  + ([(lo_, '.slT')] if origfilt and not probe else [])))
     ld = 'SECTIONS {\n' + ''.join(
         f'  {n} 0x{r[0]:X} : {{ ' + ' '.join(f'{o}({s})' for o, s in parts) + ' }\n' for n, r, parts in place) + '}\n'
     with tempfile.TemporaryDirectory() as td:
@@ -238,15 +241,17 @@ def build(base, out, probe=False, slew=True):
         img[a + 15 - BASE] = k
     if not probe:
         struct.pack_into('>II', img, BM_SLOT - BASE, syms['slc_name'], syms['slc_key'])
-    img[0x18:0x30] = (b'EOS 4.71-b2 SliceProbe' if probe else NAME).ljust(24, b' ')
+    img[0x18:0x30] = (b'EOS 4.71-b2 SliceProbe' if probe else (name or NAME)).ljust(24, b' ')
     struct.pack_into('>II', img, 4, 0, 0xffffffff)
     c = eos_lz.csum(img)
     struct.pack_into('>II', img, 4, c, c ^ 0xffffffff)
     open(out, 'wb').write(img)
     json.dump(dict(syms, filter_tail=F[0], pm_free=syms['pm_end']), open(out + '.syms.json', 'w'), indent=1)
-    print(f'{out}: checksum {c:08x}; name {NAME.decode()!r}')
+    print(f'{out}: checksum {c:08x}; name {(name or NAME).decode()!r}')
+    build.syms_l = syms_l
     return syms, F
 
 
 if __name__ == '__main__':
-    build(sys.argv[1], sys.argv[2], probe='--probe' in sys.argv, slew='--noslew' not in sys.argv)
+    build(sys.argv[1], sys.argv[2], probe='--probe' in sys.argv, slew='--noslew' not in sys.argv,
+          origfilt='--origfilt' in sys.argv)

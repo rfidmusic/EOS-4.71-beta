@@ -1,5 +1,53 @@
 # Changelog: EOS 4.70 → EOS 4.71-beta
 
+## EOS 4.71-beta2 build 3
+
+Header name **EOS 4.71-beta2 build 3**, image checksum `08859e24`. Includes everything in EOS 4.71-beta2 build 2
+except the OB-Xa filter models in the filter list. Apps v0.3.0 build it by default; build 2 stays available.
+Checked in the emulator (`tools/emu_fuzzob.py`, 29,590 checks: E-mu's filters against EOS 4.70, the 4 Pole LP+Fuzz
+against build 2, the other Fuzz filters against a reference) and measured on an E4 Ultra with the sine-sweep grid
+(`notes/fuzz.md`).
+
+### Changed: E-mu's own filters are back
+- **Why:** after multiple tests and retuning, the OB-Xa filter models offered too little at too much cost.
+- The 21 filters of EOS 4.70 are back with E-mu's own code, order and type numbers, and sound exactly as in 4.70.
+- **Presets from the earlier betas:** presets saved in 4.71-beta, 4.71-beta2 or build 2 that used a lowpass,
+  highpass or bandpass filter (the OB-Xa models) now play E-mu's filter of the same name. They can sound
+  different: E-mu's cutoff calibration and resonance instead of the OB-Xa's. Presets made in EOS 4.70 sound as
+  they did there.
+- Going with the OB-Xa models: their cutoff calibration, the smoother resonance steps of 4.71-beta2, build 2's
+  high-pass level trim at high Q, and the 4th Order High-pass distortion at cutoff 240 / Q 127.
+
+### New: Fuzz filters
+Five Fuzz filters at the end of the filter list, after Peak/Shelf Morph. **Q** is shown as **Fuzz**. At Fuzz 0
+each one is its plain filter; as Fuzz rises, a drive stage pushes the E4's filter chip into clipping, with up to
+about +29 dB of gain.
+
+> **Be mindful of gain: the Fuzz filters get LOUD.** Turn the voice volume down before turning Fuzz up.
+
+| Filter | Built on | Fuzz (measured, sine sweep) |
+|---|---|---|
+| 2 Pole LP+Fuzz | OB-Xa 2-pole lowpass, milder drive pole | from Fuzz 80–127, up to cutoff 128 |
+| 4 Pole LP+Fuzz | unchanged from build 2 (same type number) | from Fuzz 48 at low cutoffs to Fuzz 127 at cutoff 160 |
+| 2nd Ord HP+Fuzz | OB-Xa 2-pole high-pass | from Fuzz 64 at low cutoffs to Fuzz 112 at cutoff 128 |
+| 2nd Ord BP+Fuzz | OB-Xa band-pass | the mildest: cutoffs 0–64, Fuzz 112–127 |
+| Contrary BP+Fuzz | the betas' Contrary Band-pass | the strongest: from Fuzz 48–80 at every cutoff |
+
+- All but the Contrary BP+Fuzz have little drive above a cutoff of 192.
+- The **4 Pole LP+Fuzz** is build 2's filter, unchanged: presets that use it play the same. Only its place in the
+  list changes (second of the five).
+- The 4th Order High-pass and Band-pass have no Fuzz version: they leave no free stage for the drive.
+
+### Internal
+- To make room: the disk-unit tables are folded into one record, and nine duplicate strings are merged. Drives
+  work as before. Tested on an E4 Ultra: all SCSI IDs, CD-ROM, format, load, save and directory. Floppy format and
+  boot were not tested.
+
+### Apps v0.3.0
+- EOS Flasher builds build 3 by default; build 2 and 4.71-beta stay selectable.
+- New patch format: E-mu code that build 3 moves to a new place is copied within your own 4.70 when the OS is
+  built, instead of being shipped. The patch holds only this project's bytes (6,597) and the copy steps.
+
 ## EOS 4.71-beta2 build 2
 
 Header name **EOS 4.71-beta2 build 2**, image checksum `0886960e`. Includes everything in EOS 4.71-beta2 (build 1,

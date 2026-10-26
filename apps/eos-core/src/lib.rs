@@ -3,7 +3,7 @@
 //! * [`lz`]       floppy/MIDI Lz77 codec of the EOS Primary Loader (PL01 01f05, routine 0x18BE8)
 //! * [`image`]    OS image header and checksum
 //! * [`exe`]      locate the EOS floppy image inside E-mu's self-extracting EOS470.EXE
-//! * [`patch`]    the EOS 4.71-beta and 4.71-beta2 patches (only our bytes; applied to the user's own 4.70)
+//! * [`patch`]    the EOS 4.71-beta and 4.71-beta2 patches (only our bytes, plus copies within the user's own 4.70)
 //! * [`filedump`] MMA "MIDI File Dump" messages as accepted by the loader, plus a loader simulation
 //! * [`sender`]   handshaked transfer to the sampler (MIDI output and input)
 //! * [`remote`]   E-mu editor SysEx: set and read parameters of a running EOS

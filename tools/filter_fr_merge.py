@@ -7,7 +7,9 @@ is used wherever the 6 s sweep is unreliable (cutoff <= SLOW_CUT and Q >= SLOW_Q
 the 6 s take everywhere else. Writes OUT/log.json and OUT/bands.json (levels already relative: ref = 0 dB), and
 OUT/source.json (which take each setting came from).
 
-usage: filter_fr_merge.py OUT FASTDIR SLOWDIR
+usage: filter_fr_merge.py OUT FASTDIR SLOWDIR [--rate R]
+  --rate R: the E4 played the sweeps at R x their rate (0.9194 = E4 on its 44.1 kHz fallback clock, recorded at
+            48 kHz): the analysis follows a sweep of length T/R from 20R to 20000R Hz (bands stay in real Hz)
 """
 import json, os, sys
 import numpy as np
@@ -15,16 +17,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lpfuzz_fr_analyze as A     # noqa: E402
 
 SLOW_CUT, SLOW_Q = 16, 64
+RATE = float(sys.argv[sys.argv.index('--rate') + 1]) if '--rate' in sys.argv else 1.0
 
 
 def analysed(d):
     log = json.load(open(os.path.join(d, 'log.json')))
-    cache = os.path.join(d, 'bands_T.json')
+    cache = os.path.join(d, 'bands_T.json' if RATE == 1.0 else f'bands_T_r{RATE}.json')
     have = json.load(open(cache)) if os.path.exists(cache) else {}
     for r in log:
         if r['tag'] in have or not os.path.exists(os.path.join(d, r['tag'] + '.npy')):
             continue
-        A.T = float(r.get('sweep_s', 20.0))
+        A.T = float(r.get('sweep_s', 20.0)) / RATE
+        A.F1, A.F2 = 20.0 * RATE, 20000.0 * RATE
         have[r['tag']] = A.analyse(np.load(os.path.join(d, r['tag'] + '.npy')), A.ideal())
     json.dump(have, open(cache, 'w'))
     ref = have.get('ref_end') or have['ref_start']

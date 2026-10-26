@@ -41,7 +41,7 @@ def u32(img, a):
     return struct.unpack('>I', img[a - BASE:a - BASE + 4])[0]
 
 
-def build(base, out, name=NAME, release=False):
+def build(base, out, name=NAME, release=False, origfilt=False, nfz=0):
     img = bytearray(open(base, 'rb').read())
     # stock checks
     if img[WORDS - BASE:WORDS - BASE + 8].hex() != WORDS_STOCK:
@@ -70,7 +70,9 @@ def build(base, out, name=NAME, release=False):
         f.write('| vtable of 4 Pole LP+Fuzz: 4 Pole Low-pass (0x688A4) with slots 0x0C-0x1C replaced\n')
         for k, v in enumerate(vt):
             f.write(f'        .long   {sub.get(k, f"0x{v:08X}")}\n')
-    run(BIN + 'm68k-elf-as', '-mcpu=5206e', *(['--defsym', 'RELEASE=1'] if release else []), '-o', 'lpfuzz.o', 'lpfuzz.s')
+    run(BIN + 'm68k-elf-as', '-mcpu=5206e', *(['--defsym', 'RELEASE=1'] if release else []),
+        *(['--defsym', 'ORIGFILT=1'] if origfilt else []), *(['--defsym', f'NFZ={nfz}'] if nfz else []),
+        '-o', 'lpfuzz.o', 'lpfuzz.s')
     open(os.path.join(PDIR, 'lpfuzz.ld'), 'w').write(f'SECTIONS {{\n  .ctor 0x{REGION[0]:X} : {{ lpfuzz.o(.ctor) }}\n}}\n')
     run(BIN + 'm68k-elf-ld', '-T', 'lpfuzz.ld', '-e', '_start', '-o', 'lpfuzz.elf', 'lpfuzz.o')
     run(BIN + 'm68k-elf-objcopy', '-O', 'binary', '-j', '.ctor', 'lpfuzz.elf', 'lpfuzz_ctor.bin')
@@ -87,19 +89,21 @@ def build(base, out, name=NAME, release=False):
         raise SystemExit('vtable not aligned')
     # apply
     img[lo - BASE:lo - BASE + len(code)] = code
-    slot = syms['vtlist'] + 2 * 21 - BASE                   # vtable list entry 21 (before the default)
-    if img[slot:slot + 2] != b'\x00\x00' or not 0x60000 < syms['lpf_vt'] < 0x70000:
-        raise SystemExit('vtable list slot 21 not the placeholder')
-    struct.pack_into('>H', img, slot, syms['lpf_vt'] - 0x60000)
+    nmenu, count, alloc = (22 + nfz if nfz else 31, 0x27C, 0x280) if origfilt else (23, 0x25C, 0x260)
+    if not nfz:                                             # (nfz: build_fuzz.py fills the Fuzz slots)
+        slot = syms['vtlist'] + 2 * (nmenu - 2) - BASE      # vtable list entry before the default
+        if img[slot:slot + 2] != b'\x00\x00' or not 0x60000 < syms['lpf_vt'] < 0x70000:
+            raise SystemExit('vtable list LP+Fuzz slot not the placeholder')
+        struct.pack_into('>H', img, slot, (syms['lpf_vt'] - 0x60000) // (2 if origfilt else 1))
     img[lo - BASE + len(code):hi - BASE] = b'\x4e\x71' * ((hi - lo - len(code)) // 2)
-    img[ALLOC + 2 - BASE:ALLOC + 4 - BASE] = b'\x02\x60'
+    struct.pack_into('>H', img, ALLOC + 2 - BASE, alloc)
     for a in COUNT_SITES:
-        img[a - BASE:a - BASE + 2] = b'\x02\x5c'
+        struct.pack_into('>H', img, a - BASE, count)
     for d in (DESC_FT1, DESC_FT2):
         if img[d + 0x15 - BASE] != 20:
             raise SystemExit('filter-type descriptor stored range not stock')
-        struct.pack_into('>I', img, d + 10 - BASE, 21)
-        img[d + 0x15 - BASE] = 21      # stored range = max: no 20/21 rescaling of the stored type ID (0x596B4/0x59718)
+        struct.pack_into('>I', img, d + 10 - BASE, nmenu - 2)
+        img[d + 0x15 - BASE] = nmenu - 2   # stored range = max: no rescaling of the stored type ID (0x596B4/0x59718)
     if not release:
         struct.pack_into('>I', img, DESC195 + 10 - BASE, 31)
         struct.pack_into('>II', img, DESC195 + 0x1A - BASE, syms['sw_get'], syms['sw_set'])

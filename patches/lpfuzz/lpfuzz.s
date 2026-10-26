@@ -31,7 +31,11 @@
         .equ    MALLOC,    0x2AFDC
         .equ    CTOR_TAIL, 0x683F0
         .equ    CTOR_EXIT, 0x68420
+        .ifdef  ORIGFILT
+        .equ    COUNT,     0x27C              | 31-entry menu list (originals + 8 OB-Xa + LP+Fuzz + default)
+        .else
         .equ    COUNT,     0x25C
+        .endif
         .equ    SVF,       0x65FB0            | OB-Xa SVF[32], LADA[32] follows at +128
         .equ    LADB16,    0x6875C
         .equ    LP4_CF,    0x65E40
@@ -44,7 +48,15 @@
         .equ    NEUTRAL,   0xFFCFFFCF
         .equ    GAINBASE,  0x10004D7C
         .equ    GOFF,      0x6871C
+        .ifdef  NFZ
+        .equ    NVT,       22 + NFZ           | 21 E-mu filters, NFZ Fuzz filters, the default
+        .else
+        .ifdef  ORIGFILT
+        .equ    NVT,       31
+        .else
         .equ    NVT,       23
+        .endif
+        .endif
 
         .equ    RELSW,     15
 
@@ -77,6 +89,9 @@ ctor:   lea     -16(%sp),%sp
         lea     vtlist(%pc),%a0
         moveq   #0,%d0
         move.w  (%a0,%d7.l*2),%d0
+        .ifdef  ORIGFILT
+        add.l   %d0,%d0                      | entries are (vtable - 0x60000) / 2: reach 0x60000..0x7FFFE
+        .endif
         addi.l  #0x60000,%d0
         move.l  %d0,(%a5)
 3:      move.l  COUNT(%a3),%d0
@@ -93,11 +108,34 @@ ctor:   lea     -16(%sp),%sp
         jmp     CTOR_TAIL                    | d0 = count
 
         .align  2
+        .ifdef  NFZ
+| (vtable - 0x60000) / 2: the 21 E-mu filters (stock code, build_fuzz.py), then NFZ Fuzz filters (filled in by
+| build_fuzz.py), the default. LP+Fuzz below is not listed (its code is unused in this build).
+vtlist: .word   0x8878/2,0x88A4/2,0x88D0/2,0x88FC/2,0x8928/2,0x89D8/2,0x8A04/2,0x8A30/2,0x8954/2,0x8980/2
+        .word   0x89AC/2,0x8A5C/2,0x8A88/2,0x8AB4/2,0x8AE0/2,0x8B0C/2,0x8B38/2,0x87DC/2,0x8B64/2,0x8B94/2
+        .word   0x8BC4/2
+        .rept   NFZ
+        .word   0                            | a Fuzz filter
+        .endr
+        .word   0x884C/2                     | default (type 0x7F) stays last
+        .else
+        .ifdef  ORIGFILT
+| (vtable - 0x60000) / 2. The 21 E-mu filters (the first eight back to the original E-mu code, build_origfilt.py),
+| then the eight OB-Xa models (filled in by build_origfilt.py), LP+Fuzz (build_lpfuzz.py), the default.
+vtlist: .word   0x8878/2,0x88A4/2,0x88D0/2,0x88FC/2,0x8928/2,0x89D8/2,0x8A04/2,0x8A30/2,0x8954/2,0x8980/2
+        .word   0x89AC/2,0x8A5C/2,0x8A88/2,0x8AB4/2,0x8AE0/2,0x8B0C/2,0x8B38/2,0x87DC/2,0x8B64/2,0x8B94/2
+        .word   0x8BC4/2
+        .word   0,0,0,0,0,0,0,0              | OB-Xa 2/4/6 Pole LP, HP2, HP4, BP2, BP4, Contrary BP
+        .word   0                            | LP+Fuzz
+        .word   0x884C/2                     | default (type 0x7F) stays last
+        .else
 vtlist: .word   0x8878,0x88A4,0x88D0,0x88FC,0x8928,0x89D8,0x8A04,0x8A30,0x8954,0x8980      | + 0x60000
         .word   0x89AC,0x8A5C,0x8A88,0x8AB4,0x8AE0,0x8B0C,0x8B38,0x87DC,0x8B64,0x8B94
         .word   0x8BC4
         .word   0                            | lpf_vt - 0x60000 (filled in by the builder)
         .word   0x884C                       | default (type 0x7F) stays last
+        .endif
+        .endif
 
         .ifndef RELEASE
 | ---- parameter 195: getter(desc) / setter(desc, v) ----

@@ -1,4 +1,4 @@
-//! EOS Flasher: builds EOS 4.71-beta2 (or 4.71-beta, or the original 4.70) from E-mu's EOS470.EXE and sends it to an
+//! EOS Flasher: builds EOS 4.71-beta2 build 3 (or build 2, 4.71-beta, or the original 4.70) from E-mu's EOS470.EXE and sends it to an
 //! E-mu E4 Ultra over MIDI (MIDI File Dump with the loader's handshake). E-mu's firmware is not part
 //! of this app: it patches the user's own copy and verifies input and output by SHA-256.
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
@@ -38,7 +38,7 @@ impl App {
             source: None,
             data: None,
             source_status: "Choose E-mu's EOS470.EXE (or an EOS 4.70 floppy image).".into(),
-            version: Version::Beta2,
+            version: Version::Build3,
             built: None,
             outs: vec![],
             ins: vec![],
@@ -49,9 +49,10 @@ impl App {
             running: None,
         };
         a.refresh_ports();
-        for p in [patch::BETA2, patch::BETA1] {
-            let (name, ranges, bytes) = patch::info(p);
-            a.log.push(format!("Patch: {name} ({ranges} ranges, {bytes} bytes; applied to your own 4.70 image)."));
+        for p in [patch::BUILD3, patch::BETA2, patch::BETA1] {
+            let (name, steps, bytes, copied) = patch::info(p);
+            let moved = if copied > 0 { format!(", {copied} bytes moved within your 4.70") } else { String::new() };
+            a.log.push(format!("Patch: {name} ({steps} steps, {bytes} bytes{moved}; applied to your own 4.70 image)."));
         }
         a
     }
@@ -164,7 +165,7 @@ impl eframe::App for App {
         }
         let busy = self.running.is_some();
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("EOS Flasher — E-mu E4 Ultra, EOS 4.71-beta2 build 2");
+            ui.heading("EOS Flasher — E-mu E4 Ultra, EOS 4.71-beta2 build 3");
             ui.label("Uses your own copy of E-mu's EOS470.EXE; no E-mu firmware is included in this app.");
             ui.separator();
 
@@ -185,7 +186,8 @@ impl eframe::App for App {
             ui.strong("2. Version");
             ui.horizontal(|ui| {
                 let before = self.version;
-                ui.radio_value(&mut self.version, Version::Beta2, "EOS 4.71-beta2 build 2 (latest)");
+                ui.radio_value(&mut self.version, Version::Build3, "EOS 4.71-beta2 build 3 (latest)");
+                ui.radio_value(&mut self.version, Version::Beta2, "Build 2");
                 ui.radio_value(&mut self.version, Version::Beta1, "EOS 4.71-beta");
                 ui.radio_value(&mut self.version, Version::Original, "Original EOS 4.70 (go back)");
                 if before != self.version {

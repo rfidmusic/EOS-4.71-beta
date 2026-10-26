@@ -1,16 +1,18 @@
 # EOS 4.71-beta2 Operation Manual Addendum
 
 This is the Operation Manual Addendum for **EOS version 4.71-beta2**, an unofficial update of E-mu's
-EOS 4.70 for the **E4 Ultra** family of synthesizer/samplers. It includes everything in EOS 4.71-beta:
-Oberheim OB-Xa filter models, tempo-synced LFOs, transwave scanning of sample loops, a MIDI clock that keeps
-running when your sequencer stops, and a fix for the pan controls.
+EOS 4.70 for the **E4 Ultra** family of synthesizer/samplers. It includes tempo-synced LFOs, transwave
+scanning of sample loops, a MIDI clock that keeps running when your sequencer stops, and a fix for the pan
+controls.
 
 **New in 4.71-beta2:** the **4 Pole LP+Fuzz** filter and smoother resonance steps, **Insert Silence** in
 Sample Edit, the **'Slice** cord destination, a **Slice** key in Beat Munger that turns a loop into a sliced
 preset, **WTScan** improvements (notes start at the loop, fast moves glide), and a balanced pan centre.
 
-**New in build 2:** high-pass filters no longer run into clipping at high Q, and the 4 Pole LP+Fuzz level
-follows Q smoothly. The startup screen shows **EOS 4.71-beta2 build 2**.
+**New in build 2:** the 4 Pole LP+Fuzz level follows Q smoothly.
+
+**New in build 3:** E-mu's own filters are back, and five **Fuzz filters** join the end of the filter list (see
+Filters). The startup screen shows **EOS 4.71-beta2 build 3**.
 
 Read this addendum together with the EOS 4.7 Operation Manual and the EOS 4.7 Operation Manual Addendum.
 Everything not mentioned here works as described there.
@@ -57,7 +59,7 @@ This is needed once for each app (EOS Flasher and EOS Pan Test). On Windows, if 
 
 1. Start **EOS Flasher** and press **Choose EOS470.EXE…**. Select the file. The flasher confirms
    "original E-mu EOS v4.70 found and verified".
-2. Select **EOS 4.71-beta2** and press **Build**. (Optionally press **Save .syx…** to keep a copy.)
+2. Select **EOS 4.71-beta2 build 3** and press **Build**. (Optionally press **Save .syx…** to keep a copy.)
 3. Select the MIDI **Output to E4** and the MIDI **Input from E4**.
 4. Press **Send to E4**.
 5. Turn the E4 on while holding the **Enter** button. When the display asks
@@ -65,73 +67,59 @@ This is needed once for each app (EOS Flasher and EOS Pan Test). On Windows, if 
    starts; the flasher shows its progress (about 9 minutes).
 6. When the transfer is complete the E4 checks the new software and asks **"Burn to flash?"**.
    Press **Yes**. Do not turn the E4 off while it writes to flash.
-7. The E4 restarts. The startup screen shows **EOS 4.71-beta2**.
+7. The E4 restarts. The startup screen shows **EOS 4.71-beta2 build 3**.
 
 **To return to EOS 4.70:** repeat the procedure and select **Original EOS 4.70** in step 2. The flasher
-can also build the earlier **EOS 4.71-beta**.
+can also build **build 2** and the earlier **EOS 4.71-beta**.
 
 > **Note:** If the flasher reports "header not acknowledged", check that the E4's MIDI Out is connected
 > to the selected MIDI input and that the E4 is showing "Searching for OS…".
 
 ---
 
-## Filters: OB-Xa Models
+## Filters
 
-The lowpass, highpass and bandpass filter types below now model the filters of the Oberheim OB-Xa,
-which are built on the Curtis CEM3320 filter chip. Filter type names and numbers are unchanged, so
-existing presets load as before and use the new models.
+**E-mu's own filters (build 3).** The 21 filters of EOS 4.70 are back with E-mu's own code, order and type
+numbers, and sound exactly as in EOS 4.70. After multiple tests and retuning, the OB-Xa filter models of
+4.71-beta to build 2 offered too little at too much cost; they now live on only inside the Fuzz filters below.
 
-| Filter type | 4.71-beta2 model |
-|---|---|
-| 2 Pole Lowpass | OB-Xa 2-pole state-variable lowpass (12 dB/oct) |
-| 4 Pole Lowpass | OB-Xa 4-pole ladder lowpass (24 dB/oct) |
-| 6 Pole Lowpass | 4-pole ladder followed by the 2-pole, same cutoff (36 dB/oct) |
-| 2nd Order High-pass | OB-Xa 2-pole response as highpass |
-| 4th Order High-pass | OB-Xa 4-pole response as highpass |
-| 2nd Order Band-pass | OB-Xa state-variable bandpass |
-| 4th Order Band-pass | OB-Xa 4-pole bandpass |
-| Contrary Band-pass | E-mu's contrary bandpass with the cutoff calibrated to the display |
+> **Note:** Presets saved in 4.71-beta, 4.71-beta2 or build 2 that used a lowpass, highpass or bandpass filter
+> (then the OB-Xa models) now play E-mu's filter of the same name. They can sound different: E-mu's cutoff
+> calibration and resonance instead of the OB-Xa's. Presets made in EOS 4.70 sound as they did there.
 
-- **Frequency:** the cutoff (or centre) frequency now follows the frequency shown on the display,
-  also at high Q. In EOS 4.70 the lowpass peak drifted up to 25 % sharp at low frequencies and the
-  highpass corner sat 25–60 % below the display.
-- **Q:** resonance rises the way the OB-Xa's does. Maximum resonance is matched to EOS 4.70
-  (about 19 dB for 2-pole, 39 dB for 4-pole and 46 dB for 6-pole), so preset levels stay balanced.
-- The 4th Order Band-pass has a resonant peak of about +15 dB at maximum Q.
+### Fuzz Filters (new in build 3)
 
-> **Note:** The E4's filter hardware is linear, so the OB-Xa's saturation and self-oscillation are not
-> reproduced.
+Five Fuzz filters are the last entries in the filter type list (after Peak/Shelf Morph). Each one is a filter
+with a drive stage that pushes the E4's filter chip into clipping.
 
-**Smoother resonance (new in 4.71-beta2):** the OB-Xa lowpass, highpass and bandpass filters now change
-resonance smoothly through the whole **Q** range. In 4.71-beta, Q moved in steps of 4 or 8 values.
+> **Caution: be mindful of gain. The Fuzz filters get LOUD:** up to about +29 dB more than the plain filter.
+> Turn the voice volume down before turning **Fuzz** up.
 
-**Level at high Q (new in build 2):** the 2nd and 4th Order High-pass and the Contrary Band-pass turn their
-input level down as **Q** rises, so high-Q settings no longer run into the filter chip's clipping point. The
-change is small at low Q and largest at Q 127. It also applies when Q is modulated in real time, and **Master
-Headroom** still works on top of it.
+| Filter type | Built on | Where the fuzz starts (measured) |
+|---|---|---|
+| 2 Pole LP+Fuzz | OB-Xa 2-pole lowpass | Fuzz 80–127, cutoffs up to 128 |
+| 4 Pole LP+Fuzz | OB-Xa 4-pole ladder (see below) | Fuzz 48 at low cutoffs, up to Fuzz 127 at cutoff 160 |
+| 2nd Ord HP+Fuzz | OB-Xa 2-pole highpass | Fuzz 64 at low cutoffs, up to Fuzz 112 at cutoff 128 |
+| 2nd Ord BP+Fuzz | OB-Xa bandpass | the mildest: cutoffs 0–64, Fuzz 112–127 |
+| Contrary BP+Fuzz | Contrary Band-pass | the strongest: Fuzz 48–80 at every cutoff |
 
-| Filter type | Q 64 | Q 96 | Q 112 | Q 127 |
-|---|---|---|---|---|
-| 2nd Order High-pass | −1.2 dB | −2.9 dB | −4.2 dB | −5.9 dB |
-| 4th Order High-pass | −1.8 dB | −4.9 dB | −7.4 dB | −11.8 dB |
-| Contrary Band-pass | −0.6 dB | −1.3 dB | −1.8 dB | −2.3 dB |
-
-High-pass presets made in 4.71-beta or the first 4.71-beta2 build (build 1) play quieter at high Q. Raise the voice
-volume if needed.
-
-> **Note:** On the 4th Order High-pass, a **cutoff of 240 with Q 127** distorts: a strong extra tone near
-> 3.2 kHz appears. This setting is left as it is, as part of the filter's character. Settings close to it
-> (cutoffs 240–248, Q 116–124) are slightly coloured; lower cutoffs or Q are clean.
+- **Frequency** sets the cutoff (or centre) frequency.
+- **Q** (shown as **Fuzz**) sets the drive and the resonance together. At Fuzz 0 the filter is clean; as Fuzz
+  rises, the drive increases until the filter clips.
+- Above a cutoff of about 192 the drive fades; there the filters stay clean. The Contrary BP+Fuzz is the
+  exception: it clips at every cutoff.
+- Frequency and Fuzz can both be modulated in real time (FilFreq and FilRes cords).
+- The 4th Order High-pass and Band-pass have no Fuzz version.
 
 ### 4 Pole LP+Fuzz (new in 4.71-beta2)
 
-**4 Pole LP+Fuzz** is a new filter type: the OB-Xa 4-pole ladder lowpass with a drive stage that pushes the
-E4's filter chip into overload. It is the **last entry in the filter type list** (after Peak/Shelf Morph), so
-the numbers of all other filter types are unchanged.
+**4 Pole LP+Fuzz** is the OB-Xa 4-pole ladder lowpass with a drive stage that pushes the E4's filter chip into
+overload. It is unchanged in build 3 and keeps its type number, so presets that use it play the same; it is now
+the second of the five Fuzz filters in the list.
 
-- **Frequency** sets the lowpass cutoff, as on the 4 Pole Lowpass.
+- **Frequency** sets the lowpass cutoff.
 - **Q** (shown as **Fuzz**) sets the drive and the resonance together. At Q 0 the filter is clean. As Q rises,
-  the resonance rises (half as much as on the 4 Pole Lowpass) and the drive increases until the filter clips.
+  the resonance rises (half as much as on the OB-Xa ladder alone) and the drive increases until the filter clips.
 - The fuzz is strongest at low and medium cutoffs. Around a cutoff of 96 it starts to clip near the cutoff
   frequency from about Q 64, and across the whole passband from about Q 96. At high cutoffs (200 and up) it
   stays clean.
@@ -491,5 +479,5 @@ system.
 - Beat Munger **Slice** makes at most 92 slices (keys 36 to 127). A slice can start with a small click where the
   waveform has no zero crossing near the cut.
 - **'Slice** and **WTScan** share one cord sum: do not use both on one voice.
-- The 4th Order High-pass distorts at cutoff 240 with Q 127 (see Filters: OB-Xa Models).
+- The Fuzz filters can get much louder than the plain filters (see Filters: Fuzz Filters).
 - EOS 4.71-beta2 runs on Ultra models only, like EOS 4.70.
