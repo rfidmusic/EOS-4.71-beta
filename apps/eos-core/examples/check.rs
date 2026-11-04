@@ -1,5 +1,5 @@
-//! Command-line check: EOS470.EXE -> 4.71-beta2 build 3 (or build 2, 4.71-beta, or 4.70) -> .syx, verified by the
-//! loader simulation. usage: check EOS470.EXE OUT.syx [--build2 | --beta1 | --original]
+//! Command-line check: EOS470.EXE -> 4.71-beta2 build 3 (or b3+LfoCk, build 2, 4.71-beta, or 4.70) -> .syx, verified by the
+//! loader simulation. usage: check EOS470.EXE OUT.syx [--lfock | --build2 | --beta1 | --original]
 fn main() {
     let a: Vec<String> = std::env::args().collect();
     let data = std::fs::read(&a[1]).expect("read input");
@@ -8,6 +8,8 @@ fn main() {
         Version::Original
     } else if a.iter().any(|x| x == "--beta1") {
         Version::Beta1
+    } else if a.iter().any(|x| x == "--lfock") {
+        Version::LfoCk
     } else if a.iter().any(|x| x == "--build2") {
         Version::Beta2
     } else {

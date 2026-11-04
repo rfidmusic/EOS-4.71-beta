@@ -117,6 +117,7 @@ To go back, do the same with **Original EOS 4.70**.
 | Path | Contents |
 |---|---|
 | `apps/` | Rust apps: `eos-flasher`, `eos-pantest`, shared `eos-core` (codec, patch, MIDI File Dump, editor SysEx) |
+| `apps/eos-core/data/eos471b3lfock.e4p` | Build 3 plus Lfo1Ck / Lfo2Ck. Startup name `EOS 4.71-beta2 b3+LfoCk` |
 | `apps/eos-core/data/eos471beta2b3.e4p` | The build 3 patch: the 6,597 bytes this project wrote, plus steps that copy E-mu code it moves within your own 4.70 |
 | `apps/eos-core/data/eos471beta2.e4p` | The build 2 patch: only the 7,165 bytes this project wrote, applied to your own 4.70 |
 | `apps/eos-core/data/eos471beta.e4p` | The 4.71-beta patch (3,232 bytes) |

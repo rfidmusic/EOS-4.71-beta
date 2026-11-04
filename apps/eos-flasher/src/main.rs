@@ -49,7 +49,7 @@ impl App {
             running: None,
         };
         a.refresh_ports();
-        for p in [patch::BUILD3, patch::BETA2, patch::BETA1] {
+        for p in [patch::LFOCK, patch::BUILD3, patch::BETA2, patch::BETA1] {
             let (name, steps, bytes, copied) = patch::info(p);
             let moved = if copied > 0 { format!(", {copied} bytes moved within your 4.70") } else { String::new() };
             a.log.push(format!("Patch: {name} ({steps} steps, {bytes} bytes{moved}; applied to your own 4.70 image)."));
@@ -186,6 +186,7 @@ impl eframe::App for App {
             ui.strong("2. Version");
             ui.horizontal(|ui| {
                 let before = self.version;
+                ui.radio_value(&mut self.version, Version::LfoCk, "EOS 4.71-beta2 b3+LfoCk");
                 ui.radio_value(&mut self.version, Version::Build3, "EOS 4.71-beta2 build 3 (latest)");
                 ui.radio_value(&mut self.version, Version::Beta2, "Build 2");
                 ui.radio_value(&mut self.version, Version::Beta1, "EOS 4.71-beta");
