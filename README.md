@@ -44,7 +44,7 @@ OB-Xa models and is gone with them in build 3.)
 
 ## Get it
 
-E-mu's firmware is not distributed here. The **EOS Flasher** app builds 4.71-beta2 build 3 (or build 2, or the
+E-mu's firmware is not distributed here. The **EOS Flasher** app builds 4.71-beta2 build 3 (or b3+LfoCk, build 2, or the
 earlier 4.71-beta) from your own copy of
 E-mu's update file **EOS470.EXE** (it verifies the file is the original 4.70, applies this project's
 patch and verifies the result) and sends it to the E4 over MIDI.
@@ -53,7 +53,7 @@ Downloads (see [Releases](../../releases)):
 
 | App | macOS 11+ (universal: Apple silicon + Intel) | macOS 10.13 High Sierra+ (Intel) | Windows | Linux (Flatpak, x86_64) |
 |---|---|---|---|---|
-| **EOS Flasher**: build 4.71-beta2 build 3 (or build 2, 4.71-beta, or the original 4.70) and flash it over MIDI | `EOS-Flasher-macOS-universal.zip` | `EOS-Flasher-macOS-HighSierra-Intel.zip` | `EOS-Flasher-Windows.zip` | `EOS-Flasher-Linux-x86_64.flatpak` |
+| **EOS Flasher**: build 4.71-beta2 build 3 (or b3+LfoCk, build 2, 4.71-beta, or the original 4.70) and flash it over MIDI | `EOS-Flasher-macOS-universal.zip` | `EOS-Flasher-macOS-HighSierra-Intel.zip` | `EOS-Flasher-Windows.zip` | `EOS-Flasher-Linux-x86_64.flatpak` |
 | **EOS Pan Test**: measure the pan bug on your E4 and report results | `EOS-PanTest-macOS-universal.zip` | `EOS-PanTest-macOS-HighSierra-Intel.zip` | `EOS-PanTest-Windows.zip` | `EOS-PanTest-Linux-x86_64.flatpak` |
 
 The apps are not signed with an Apple or Microsoft developer certificate, so the first launch needs one extra

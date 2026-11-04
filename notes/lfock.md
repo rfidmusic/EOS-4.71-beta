@@ -1,6 +1,8 @@
 # Lfo1Ck / Lfo2Ck on build 3
 
-The cord behaviour is the one hardware-tested on the released beta2 (`0886a24c`, flashed image `088667ba`). This note is only where that code sits on build 3.
+The cord behaviour is the one hardware-tested on the released beta2 (`0886a24c`, flashed image `088667ba`) and again on this image, on an E4 Platinum. A negative cord sum selects one of the 16 tempo divisions and overrides Rate. Zero or a positive sum leaves Rate alone, including a synced Rate. While the sum is negative the Rate field shows the division, is grey, and the knob is blocked. The saved Rate returns when the sum is zero or above, or when the LFO page is opened with no negative-amount cord aimed at that LFO. MIDI Stop does not release it. Only notes of the preset on screen write that preset's Rate field.
+
+This note is where that code sits on build 3.
 
 Build 3 leaves 41 bytes in its tracked holes, and the port-map tail is the restored E-mu low-pass. The cord body is 750 bytes and stays one piece.
 
