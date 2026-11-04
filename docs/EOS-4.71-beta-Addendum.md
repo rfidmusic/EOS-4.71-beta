@@ -546,4 +546,8 @@ system.
   waveform has no zero crossing near the cut.
 - **'Slice** and **WTScan** share one cord sum: do not use both on one voice.
 - The Fuzz filters can get much louder than the plain filters (see Filters: Fuzz Filters).
+- Saving a preset while Lfo1Ck or Lfo2Ck is holding Rate stores the division as the Rate value.
+- Leaving the preset while the cord is holding Rate drops the Rate that would have been restored.
+- With a zone selected, the Rate field does not show the cord's division.
+- A note that is already sounding keeps the division it took when it started.
 - EOS 4.71-beta2 runs on Ultra models only, like EOS 4.70.

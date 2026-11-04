@@ -3,7 +3,7 @@
 ## EOS 4.71-beta2 b3+LfoCk
 
 Header name **EOS 4.71-beta2 b3+LfoCk**, image checksum `0885e5b5`. Build 3 plus the Lfo1Ck and Lfo2Ck cord
-destinations. The flasher keeps build 3 (`08859e24`) as its own choice. Checked in the emulator
+destinations. Apps v0.3.1. The flasher keeps build 3 (`08859e24`) as its own choice. Checked in the emulator
 (`tools/emu_lfock.py`, 2575 checks; `tools/emu_listorder.py`, 74 indexes) and on an E4 Platinum.
 
 ### New: Lfo1Ck and Lfo2Ck cord destinations

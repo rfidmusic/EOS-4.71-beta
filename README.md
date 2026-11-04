@@ -1,4 +1,4 @@
-# EOS 4.71-beta2 build 3 for the E-mu E4 Ultra
+# EOS 4.71-beta2 b3+LfoCk for the E-mu E4 Ultra
 
 An unofficial update of E-mu's **EOS 4.70** for the Emulator IV family **Ultra** models, made by reverse
 engineering the 4.70 firmware and testing every change in an emulator and on a real E4 Ultra.
@@ -6,6 +6,10 @@ engineering the 4.70 firmware and testing every change in an emulator and on a r
 **What's new** (details in [CHANGELOG.md](CHANGELOG.md) and the
 [EOS 4.71-beta2 Operation Manual Addendum](docs/EOS-4.71-beta-Addendum.md),
 [PDF](docs/EOS-4.71-beta-Addendum.pdf)):
+
+**New in b3+LfoCk:** **Lfo1Ck** and **Lfo2Ck** cord destinations. A negative amount selects that LFO's tempo
+division and overrides Rate; the Rate field shows the division and is grey while the cord holds it. The startup
+screen shows **EOS 4.71-beta2 b3+LfoCk**. Build 3 stays available in EOS Flasher.
 
 **New in build 3:** E-mu's own filters are back (after multiple tests and retuning, the OB-Xa filter models
 offered too little at too much cost), and five **Fuzz filters** join the end of the filter list: 2 Pole LP+Fuzz,
