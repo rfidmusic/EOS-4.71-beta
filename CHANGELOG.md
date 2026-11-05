@@ -4,7 +4,7 @@
 
 Header name **EOS 4.71-beta2 build 4**, image checksum `0885ece0`. Contains b3+LfoCk (below, PR #8), the RFX pan
 fix and an RFX probe for the pan test. Built by `tools/build_b4.py`; the flasher patch is
-`apps/eos-core/data/eos471beta2b4.e4p` (offered as a test choice; build 3 stays the default). Checked in the
+`apps/eos-core/data/eos471beta2b4.e4p` (apps v0.4.0; offered as a test choice, build 3 stays the default). Checked in the
 emulator:
 - `tools/emu_rfxpan.py`: 3,072 send writes, 0 mismatches.
 - `tools/emu_rfxprobe.py`: 5,560 probe reads, 0 failures.

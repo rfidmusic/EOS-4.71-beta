@@ -116,6 +116,20 @@ To go back, do the same with **Original EOS 4.70**.
    [Pan test report](../../issues/new?template=pan-test-report.md) issue in your browser for you to
    review and submit (attach the CSV/WAV if you like).
 
+### RFX-32 owners: the RFX stuck pan test (build 4)
+
+Old reports say that with an RFX-32 fitted, a note can start at, or stay at, the pan an earlier note on the same
+channel had. To help find the cause:
+
+1. Flash **EOS 4.71-beta2 build 4** with EOS Flasher.
+2. In **EOS Pan Test**, tick **RFX stuck pan** and set Voices to 64 or 128. Optionally, give a preset number with a
+   stereo sample to add a mono-after-stereo phase. Keep the RFX buses empty or bypassed so only the dry voice
+   reaches Main.
+3. Run the test, press **Save CSV + WAV**, then **Report to GitHub**.
+4. Submit the issue that opens, and drag the saved folder (zipped) into it.
+
+Results only reach us as a GitHub issue, so please submit one even if nothing went wrong.
+
 ## Repository
 
 | Path | Contents |
