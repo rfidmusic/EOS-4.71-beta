@@ -1,5 +1,14 @@
 # Changelog: EOS 4.70 → EOS 4.71-beta
 
+## Next build (not released)
+
+### Fixed: pan on the RFX card
+- Voices sent to the RFX card used a pan law about 2.5 times too steep, a stock EOS 4.70 bug. Centre was 7.5 dB
+  down on each side instead of 3 dB, and 0.375 dB louder on the right.
+- The RFX pan table now follows the same law as the main outputs: 0 dB at hard pan and 3 dB down on both sides at
+  centre. Centre is 4.5 dB louder than before; hard-panned sounds are unchanged.
+- Checked in the emulator (`tools/emu_rfxpan.py`); not yet measured on hardware.
+
 ## EOS 4.71-beta2 build 3
 
 Header name **EOS 4.71-beta2 build 3**, image checksum `08859e24`. Includes everything in EOS 4.71-beta2 build 2

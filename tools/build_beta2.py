@@ -24,6 +24,9 @@ Tick loop-shift glide: 0x5FECA jsr shift_t, 0x5FED0..0x5FEED -> patches/slpscn/s
 destination 58 renamed SLpScn -> WTScan (same length, in place);
 HP2/HP4/Contrary BP word 9 lowered with Q (patches/hpgain/hpgain.s, K in descriptor byte 15);
 pan table 0x61590 entries 63/64 -322/-311 -> -316/-316: centre pan balanced (was 1 step = ~0.24 dB right-heavy).
+RFX pan table 0x10E794 (stock: a copy of 0x61590, but indexing 0x10E504's 0.375 dB steps, so centre was -7.5 dB and
+one step right-heavy) -> the fixed main law scaled to RFX units, (t * 105) >> 8, entry 0 kept -4096 (silent): hard pan
+0 dB as before, centre -3.0 dB both sides, matching the main outputs (notes/rfx_mix.md).
 """
 import json, os, struct, subprocess, sys, tempfile, zlib
 
@@ -64,6 +67,8 @@ PM, PM_CRC, PM_PA, PM_PB = (0x15EF5C, 0x15F818), 0x8076C4B4, 0x15FAC4, 0x15FAD4
 PM_PA_TARGET = 0x15EF5C
 PAN_TAB = 0x61590                         # pan gain table (128 words, read only by 0x60784): entries 63/64
 PAN_FIX = ((-322, -311), (-316, -316))   # stock -> equal, so centre (index 64 reads 64 and 63) is balanced
+RFX_PAN = 0x10E794                        # RFX send pan table (128 words), read only by 0x10E280 (movea.l below)
+RFX_PAN_REF = (0x10E2FE, '2a7c0010e794')  # movea.l #$10e794,a5: the table's only reference
 HPG_CF, HPG_CF_STOCK = 0x667CE, '203910004d7c21400024'   # HP/BP common_cf: word 9 = base gain
 HPG_PQ, HPG_PQ_STOCK = 0x6680C, '0281000000ff'           # HP/BP common_pq: andi.l #0xFF,d1
 HPG_K = {0x660E0: 32, 0x66A40: 48, 0x66A8C: 16}          # descriptor byte 15 (HP2, HP4, Contrary BP): word-9 cut K (HP4 48 after re-measure)
@@ -137,6 +142,9 @@ def build(base, out, probe=False, slew=True, origfilt=False, name=None, nfz=0):
         raise SystemExit('port-map builders not stock')
     if struct.unpack('>hh', img[PAN_TAB + 126 - BASE:PAN_TAB + 130 - BASE]) != PAN_FIX[0]:
         raise SystemExit('pan table entries 63/64 not stock')
+    if (img[RFX_PAN - BASE:RFX_PAN + 256 - BASE] != img[PAN_TAB - BASE:PAN_TAB + 256 - BASE]
+            or img[RFX_PAN_REF[0] - BASE:RFX_PAN_REF[0] + 6 - BASE].hex() != RFX_PAN_REF[1]):
+        raise SystemExit('RFX pan table 0x10E794 not the stock copy of 0x61590')
     if img[HPG_CF - BASE:HPG_CF - BASE + 10].hex() != HPG_CF_STOCK or img[HPG_PQ - BASE:HPG_PQ - BASE + 6].hex() != HPG_PQ_STOCK:
         raise SystemExit('HP/BP common_cf / common_pq not as expected')
     for a in HPG_K:
@@ -235,6 +243,8 @@ def build(base, out, probe=False, slew=True, origfilt=False, name=None, nfz=0):
     struct.pack_into('>I', img, PM_PB - BASE, syms['pm_B'])
     img[SCN_NAME - BASE:SCN_NAME - BASE + 7] = b'WTScan\0'
     struct.pack_into('>hh', img, PAN_TAB + 126 - BASE, *PAN_FIX[1])
+    main = struct.unpack('>128h', img[PAN_TAB - BASE:PAN_TAB + 256 - BASE])
+    struct.pack_into('>128h', img, RFX_PAN - BASE, *[-4096 if i == 0 else (t * 105) >> 8 for i, t in enumerate(main)])
     img[HPG_CF - BASE:HPG_CF - BASE + 10] = bytes.fromhex('4eb9') + struct.pack('>I', syms['hg_cf']) + bytes.fromhex('4e714e71')
     img[HPG_PQ - BASE:HPG_PQ - BASE + 6] = bytes.fromhex('4eb9') + struct.pack('>I', syms['hg_pq'])
     for a, k in HPG_K.items():
