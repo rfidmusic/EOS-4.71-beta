@@ -1,4 +1,4 @@
-# EOS 4.71-beta2 build 3 for the E-mu E4 Ultra
+# EOS 4.71-beta2 b3+LfoCk for the E-mu E4 Ultra
 
 An unofficial update of E-mu's **EOS 4.70** for the Emulator IV family **Ultra** models, made by reverse
 engineering the 4.70 firmware and testing every change in an emulator and on a real E4 Ultra.
@@ -6,6 +6,10 @@ engineering the 4.70 firmware and testing every change in an emulator and on a r
 **What's new** (details in [CHANGELOG.md](CHANGELOG.md) and the
 [EOS 4.71-beta2 Operation Manual Addendum](docs/EOS-4.71-beta-Addendum.md),
 [PDF](docs/EOS-4.71-beta-Addendum.pdf)):
+
+**New in b3+LfoCk:** **Lfo1Ck** and **Lfo2Ck** cord destinations. A negative amount selects that LFO's tempo
+division and overrides Rate; the Rate field shows the division and is grey while the cord holds it. The startup
+screen shows **EOS 4.71-beta2 b3+LfoCk**. Build 3 stays available in EOS Flasher.
 
 **New in build 3:** E-mu's own filters are back (after multiple tests and retuning, the OB-Xa filter models
 offered too little at too much cost), and five **Fuzz filters** join the end of the filter list: 2 Pole LP+Fuzz,
@@ -44,7 +48,7 @@ OB-Xa models and is gone with them in build 3.)
 
 ## Get it
 
-E-mu's firmware is not distributed here. The **EOS Flasher** app builds 4.71-beta2 build 3 (or build 2, or the
+E-mu's firmware is not distributed here. The **EOS Flasher** app builds 4.71-beta2 build 3 (or b3+LfoCk, build 2, or the
 earlier 4.71-beta) from your own copy of
 E-mu's update file **EOS470.EXE** (it verifies the file is the original 4.70, applies this project's
 patch and verifies the result) and sends it to the E4 over MIDI.
@@ -53,7 +57,7 @@ Downloads (see [Releases](../../releases)):
 
 | App | macOS 11+ (universal: Apple silicon + Intel) | macOS 10.13 High Sierra+ (Intel) | Windows | Linux (Flatpak, x86_64) |
 |---|---|---|---|---|
-| **EOS Flasher**: build 4.71-beta2 build 3 (or build 2, 4.71-beta, or the original 4.70) and flash it over MIDI | `EOS-Flasher-macOS-universal.zip` | `EOS-Flasher-macOS-HighSierra-Intel.zip` | `EOS-Flasher-Windows.zip` | `EOS-Flasher-Linux-x86_64.flatpak` |
+| **EOS Flasher**: build 4.71-beta2 build 3 (or b3+LfoCk, build 2, 4.71-beta, or the original 4.70) and flash it over MIDI | `EOS-Flasher-macOS-universal.zip` | `EOS-Flasher-macOS-HighSierra-Intel.zip` | `EOS-Flasher-Windows.zip` | `EOS-Flasher-Linux-x86_64.flatpak` |
 | **EOS Pan Test**: measure the pan bug on your E4 and report results | `EOS-PanTest-macOS-universal.zip` | `EOS-PanTest-macOS-HighSierra-Intel.zip` | `EOS-PanTest-Windows.zip` | `EOS-PanTest-Linux-x86_64.flatpak` |
 
 The apps are not signed with an Apple or Microsoft developer certificate, so the first launch needs one extra
@@ -117,6 +121,7 @@ To go back, do the same with **Original EOS 4.70**.
 | Path | Contents |
 |---|---|
 | `apps/` | Rust apps: `eos-flasher`, `eos-pantest`, shared `eos-core` (codec, patch, MIDI File Dump, editor SysEx) |
+| `apps/eos-core/data/eos471b3lfock.e4p` | Build 3 plus Lfo1Ck / Lfo2Ck. Startup name `EOS 4.71-beta2 b3+LfoCk` |
 | `apps/eos-core/data/eos471beta2b3.e4p` | The build 3 patch: the 6,597 bytes this project wrote, plus steps that copy E-mu code it moves within your own 4.70 |
 | `apps/eos-core/data/eos471beta2.e4p` | The build 2 patch: only the 7,165 bytes this project wrote, applied to your own 4.70 |
 | `apps/eos-core/data/eos471beta.e4p` | The 4.71-beta patch (3,232 bytes) |

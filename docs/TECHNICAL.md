@@ -63,3 +63,7 @@ python3 tools/make_patch.py STOCK_4.70.bin build/eos471_beta2.bin apps/eos-core/
 `build_beta2.py` checks every stock byte it replaces before patching. Its emulator suites, each run against stock:
 `emu_lpfuzz_rel`, `emu_silence`, `emu_slice`, `emu_slew`, `emu_sloop`, `emu_portmap`, `emu_slicer` and `emu_pan`.
 Design notes: `notes/lpfuzz.md`, `silence_insert.md`, `slice_design.md`, `slicer_design.md` and `pan_bug.md`.
+
+Build 3 plus Lfo1Ck / Lfo2Ck is a separate image. `tools/build_lfock.py` starts from build 3 and writes the
+startup name `EOS 4.71-beta2 b3+LfoCk` (checksum `0885e5b5`). `tools/emu_lfock.py` and `tools/emu_listorder.py`
+test it. Design note: `notes/lfock.md`.

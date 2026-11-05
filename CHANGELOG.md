@@ -1,6 +1,8 @@
 # Changelog: EOS 4.70 → EOS 4.71-beta
 
-## Next build (not released)
+## EOS 4.71-beta2 build 4 (not released)
+
+Build 3 plus the Lfo1Ck and Lfo2Ck cord destinations (b3+LfoCk, below) and the RFX pan fix.
 
 ### Fixed: pan on the RFX card
 - Voices sent to the RFX card used a pan law about 2.5 times too steep, a stock EOS 4.70 bug. Centre was 7.5 dB
@@ -8,6 +10,27 @@
 - The RFX pan table now follows the same law as the main outputs: 0 dB at hard pan and 3 dB down on both sides at
   centre. Centre is 4.5 dB louder than before; hard-panned sounds are unchanged.
 - Checked in the emulator (`tools/emu_rfxpan.py`); not yet measured on hardware.
+
+## EOS 4.71-beta2 b3+LfoCk
+
+Header name **EOS 4.71-beta2 b3+LfoCk**, image checksum `0885e5b5`. Build 3 plus the Lfo1Ck and Lfo2Ck cord
+destinations. Apps v0.3.1. The flasher keeps build 3 (`08859e24`) as its own choice. Checked in the emulator
+(`tools/emu_lfock.py`, 2575 checks; `tools/emu_listorder.py`, 74 indexes) and on an E4 Platinum.
+
+### New: Lfo1Ck and Lfo2Ck cord destinations
+- A negative cord sum selects one of the 16 tempo divisions (4 bars through 1/32) and overrides Rate.
+  Full scale is magnitude 4032, a controller at CC 127 through panel amount −100. Smaller depths are slower, in
+  16 even steps. Zero or a positive sum leaves Rate alone, including a synced Rate.
+- While the sum is negative the LFO restarts on each note. Shape and Delay still work. The Rate cord,
+  Variation and the LFO trigger are ignored, as they are for a synced Rate. That LFO's Rate field shows
+  the cord's division and follows the controller. Turning the knob does not change the Rate underneath.
+  The value is grey while the cord holds it. An amount of zero or above, or another destination,
+  restores the previous Rate, in its normal colour, when the LFO page is opened again. The cord keeps
+  its division through MIDI Stop and through a missing beat clock.
+- Only notes of the preset on the screen write that preset's Rate field. Notes of another preset sound
+  their own division and leave the field alone.
+- Lfo1Ck follows Lfo1Trg in the destination list. Lfo2Ck follows Lfo2Trg, and Lag0in follows
+  Lfo2Ck. The stored numbers are unchanged: Lag0in is 106, Lfo2Ck is 107.
 
 ## EOS 4.71-beta2 build 3
 

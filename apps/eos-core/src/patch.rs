@@ -17,11 +17,14 @@ pub const BETA1: &[u8] = include_bytes!("../data/eos471beta.e4p");
 pub const BETA2: &[u8] = include_bytes!("../data/eos471beta2.e4p");
 /// EOS 4.71-beta2 build 3 (version 2 format).
 pub const BUILD3: &[u8] = include_bytes!("../data/eos471beta2b3.e4p");
+/// Build 3 plus the Lfo1Ck / Lfo2Ck cord. Version 2 format.
+pub const LFOCK: &[u8] = include_bytes!("../data/eos471b3lfock.e4p");
 
 /// Which OS to build from the user's EOS 4.70.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Version {
     Build3,
+    LfoCk,
     Beta2,
     Beta1,
     Original,
@@ -32,6 +35,7 @@ impl Version {
     pub fn patch(self) -> Option<&'static [u8]> {
         match self {
             Version::Build3 => Some(BUILD3),
+            Version::LfoCk => Some(LFOCK),
             Version::Beta2 => Some(BETA2),
             Version::Beta1 => Some(BETA1),
             Version::Original => None,
@@ -170,13 +174,14 @@ mod tests {
 
     #[test]
     fn embedded_patches() {
-        let (a, b, c) = (parse(BETA1).unwrap(), parse(BETA2).unwrap(), parse(BUILD3).unwrap());
-        assert!(a.stock_sha == b.stock_sha && b.stock_sha == c.stock_sha, "all apply to the same EOS 4.70");
-        assert!(a.len == b.len && b.len == c.len);
+        let (a, b, c, d) = (parse(BETA1).unwrap(), parse(BETA2).unwrap(), parse(BUILD3).unwrap(), parse(LFOCK).unwrap());
+        assert!(a.stock_sha == b.stock_sha && b.stock_sha == c.stock_sha && c.stock_sha == d.stock_sha, "all apply to the same EOS 4.70");
+        assert!(a.len == b.len && b.len == c.len && c.len == d.len);
         assert_eq!(a.name, "EOS 4.71-beta");
         assert_eq!(b.name, "EOS 4.71-beta2 build 2");
         assert_eq!(c.name, "EOS 4.71-beta2 build 3");
-        for p in [&a, &b, &c] {
+        assert_eq!(d.name, "EOS 4.71-beta2 b3+LfoCk");
+        for p in [&a, &b, &c, &d] {
             let mut last = 0;
             for op in &p.ops {
                 let (off, n) = match op {
@@ -192,7 +197,7 @@ mod tests {
 
     #[test]
     fn rejects_truncated_patches() {
-        for p in [BETA1, BETA2, BUILD3] {
+        for p in [BETA1, BETA2, BUILD3, LFOCK] {
             for cut in [p.len() - 1, p.len() / 2, 100] {
                 assert!(parse(&p[..cut]).is_err(), "truncated patch accepted");
             }

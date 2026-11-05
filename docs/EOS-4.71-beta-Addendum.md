@@ -14,6 +14,9 @@ preset, **WTScan** improvements (notes start at the loop, fast moves glide), and
 **New in build 3:** E-mu's own filters are back, and five **Fuzz filters** join the end of the filter list (see
 Filters). The startup screen shows **EOS 4.71-beta2 build 3**.
 
+**New in b3+LfoCk:** **Lfo1Ck** and **Lfo2Ck** cord destinations. A negative amount selects that LFO's tempo
+division and overrides Rate. The startup screen shows **EOS 4.71-beta2 b3+LfoCk**.
+
 Read this addendum together with the EOS 4.7 Operation Manual and the EOS 4.7 Operation Manual Addendum.
 Everything not mentioned here works as described there.
 
@@ -60,6 +63,7 @@ This is needed once for each app (EOS Flasher and EOS Pan Test). On Windows, if 
 1. Start **EOS Flasher** and press **Choose EOS470.EXE…**. Select the file. The flasher confirms
    "original E-mu EOS v4.70 found and verified".
 2. Select **EOS 4.71-beta2 build 3** and press **Build**. (Optionally press **Save .syx…** to keep a copy.)
+   Select **EOS 4.71-beta2 b3+LfoCk** instead for build 3 plus the Lfo1Ck and Lfo2Ck destinations.
 3. Select the MIDI **Output to E4** and the MIDI **Input from E4**.
 4. Press **Send to E4**.
 5. Turn the E4 on while holding the **Enter** button. When the display asks
@@ -67,7 +71,8 @@ This is needed once for each app (EOS Flasher and EOS Pan Test). On Windows, if 
    starts; the flasher shows its progress (about 9 minutes).
 6. When the transfer is complete the E4 checks the new software and asks **"Burn to flash?"**.
    Press **Yes**. Do not turn the E4 off while it writes to flash.
-7. The E4 restarts. The startup screen shows **EOS 4.71-beta2 build 3**.
+7. The E4 restarts. The startup screen shows **EOS 4.71-beta2 build 3**, or **EOS 4.71-beta2 b3+LfoCk** if that
+   was the choice in step 2.
 
 **To return to EOS 4.70:** repeat the procedure and select **Original EOS 4.70** in step 2. The flasher
 can also build **build 2** and the earlier **EOS 4.71-beta**.
@@ -174,6 +179,67 @@ MIDI clock.
 - Over MIDI SysEx the divisions are Rate values 128–143.
 
 **New LFO shape:** **saw down** (shape 16), a falling sawtooth. The existing **sawtooth** rises.
+
+---
+
+## LFO Clock from a Cord (Lfo1Ck and Lfo2Ck)
+
+**Lfo1Ck** and **Lfo2Ck** choose an LFO's tempo division from a cord. The divisions are the same
+sixteen lengths as a synced Rate, from 4 bars to 1/32. **Lfo1Ck** controls LFO 1 and **Lfo2Ck**
+controls LFO 2.
+
+**To control an LFO from a cord:**
+
+1. Edit the voice and go to the **Cords** page.
+2. Choose a source, set the destination to **Lfo1Ck** or **Lfo2Ck**, and set the amount negative.
+   An amount of **0** or above leaves that LFO's Rate in control, including a tempo-synced Rate.
+3. Play a note and move the source.
+
+At amount **−100**, a MIDI controller (the mod wheel, or a MIDI A–H source) selects the division
+below. Several cords to the same destination add. A smaller negative amount reaches only the slower
+divisions.
+
+| Controller value | Division |
+|---|---|
+| 0 | Rate unchanged |
+| 1–7 | 4bars |
+| 8–15 | 2bars |
+| 16–23 | 1bar |
+| 24–31 | 1/2. |
+| 32–39 | 1/2 |
+| 40–47 | 1/4. |
+| 48–55 | 1/2T |
+| 56–63 | 1/4 |
+| 64–71 | 1/8. |
+| 72–79 | 1/4T |
+| 80–87 | 1/8 |
+| 88–95 | 1/16. |
+| 96–103 | 1/8T |
+| 104–111 | 1/16 |
+| 112–119 | 1/16T |
+| 120–127 | 1/32 |
+
+**Notes**
+
+- While the cord is negative, that LFO restarts at the beginning of its cycle on each new note. The
+  LFO **Sync** switch is not used. **Shape** and **Delay** still work.
+- While the cord is negative, that LFO's **Rate** field shows the cord's division (the same names as a
+  synced Rate, from 4bars to 1/32). Turning the knob does not change the stored Rate. The value is
+  grey while the cord holds it. Set the amount to **0** or above, or choose a different destination,
+  and Rate returns to the value it had before, in its normal colour, as soon as you open the LFO page
+  again. You do not have to play a note.
+- The cord uses the source's current level. A MIDI controller keeps the last value it was sent, so
+  setting the amount negative again and playing a note returns to that division without a new
+  message. Controller **0** at amount **−100** leaves Rate alone.
+- While the cord is negative, the Rate cord (Lfo1Rt / Lfo2Rt), **Variation** and the LFO trigger are
+  ignored, as they are when Rate itself is synced.
+- The division follows the master clock, internal or external, the same way a synced Rate does,
+  including while the sequencer is stopped. A sequencer that still sends clock when stopped keeps
+  driving the cord.
+- Only a note of the preset on the screen writes that preset's Rate field. A note of another preset
+  sounds its own division and leaves the field alone.
+- In the destination list, **Lfo1Ck** follows Lfo1Trg. **Lfo2Ck** follows Lfo2Trg, and **Lag0in**
+  follows Lfo2Ck. A preset stores the destination number, which is unchanged.
 
 ---
 
@@ -480,4 +546,8 @@ system.
   waveform has no zero crossing near the cut.
 - **'Slice** and **WTScan** share one cord sum: do not use both on one voice.
 - The Fuzz filters can get much louder than the plain filters (see Filters: Fuzz Filters).
+- Saving a preset while Lfo1Ck or Lfo2Ck is holding Rate stores the division as the Rate value.
+- Leaving the preset while the cord is holding Rate drops the Rate that would have been restored.
+- With a zone selected, the Rate field does not show the cord's division.
+- A note that is already sounding keeps the division it took when it started.
 - EOS 4.71-beta2 runs on Ultra models only, like EOS 4.70.

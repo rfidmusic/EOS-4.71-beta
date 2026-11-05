@@ -12,7 +12,9 @@ Wire format (device ID must be 00 - the loader checksums with its own ID, which 
   packet : F0 7E 00 07 02 <pkt 0..7F wrap> <nbytes-1> <8-for-7 encoded data> <xor> F7
            (<=112 file bytes/packet; xor of every byte after F0 up to the checksum, & 7F)
   EOF    : F0 7E 00 7B <pkt> F7
-Loader replies: ACK F0 7E <src> 7F <pkt> F7, NAK ...7E..., CANCEL ...7D...; 4 NAKs = cancel.
+Loader replies: ACK F0 7E <src> 7F <pkt> F7, NAK ...7E..., CANCEL ...7D..., WAIT ...7C...
+(WAIT keeps the same deadline). send matches the File Dump request 07 03, retries a silent
+header three times, and on a header NAK starts the data packets. 4 NAKs of a data packet cancel.
 
 usage:
   eos_midi.py build  (--floppy EOS.img | --bin patched_0x76543210.bin) OUT.syx
@@ -169,43 +171,72 @@ def cmd_send(a):
     out = mido.open_output(a.port)
     inp = mido.open_input(a.port_in or a.port)
 
-    def wait(kinds, timeout):
+    def pending():
+        return [bytes(m.data) for m in inp.iter_pending() if m.type == 'sysex']
+
+    def wait_hs(timeout):
+        """ACK 7F, NAK 7E, CANCEL 7D. WAIT 7C keeps the same deadline. Anything else is logged."""
         t0 = time.time()
         while time.time() - t0 < timeout:
-            for m in inp.iter_pending():
-                if m.type == 'sysex' and len(m.data) >= 3 and m.data[0] == 0x7e:
-                    sub = m.data[2]
-                    if sub in kinds:
-                        return sub, m.data
+            for raw in pending():
+                if len(raw) >= 3 and raw[0] == 0x7e and raw[2] in (0x7f, 0x7e, 0x7d, 0x7c):
+                    if raw[2] == 0x7c:
+                        print(f'  WAIT {raw.hex()}', flush=True)
+                        continue
+                    return raw[2], raw
+                print(f'  note {raw.hex()}', flush=True)
             time.sleep(0.002)
         return None, None
 
     def tx(raw):
         out.send(mido.Message('sysex', data=list(raw[1:-1])))
 
-    print('Power on holding [Enter], answer Yes to "Download OS from MIDI?" ...')
-    sub, _ = wait({0x07}, 300)  # File Dump request (07 03)
-    print('request received' if sub else 'no request seen, sending header anyway')
-    tx(msgs[0])
-    sub, _ = wait({0x7f, 0x7d}, 5)
-    if sub != 0x7f:
+    print('Power on holding [Enter], answer Yes to "Download OS from MIDI?" ...', flush=True)
+    deadline = time.time() + 300
+    req = None
+    while req is None and time.time() < deadline:
+        for raw in pending():
+            # File Dump request is 07 03. A bare 07 also matches our own header, so don't fire on that.
+            if len(raw) >= 4 and raw[0] == 0x7e and raw[2:4] == b'\x07\x03':
+                req = raw
+                break
+            print(f'  note {raw.hex()}', flush=True)
+        time.sleep(0.002)
+    print(f'request received: {req.hex()}' if req else 'no request seen, sending header anyway', flush=True)
+    # The loader ACKs a header it accepts. Silence: resend, the header may not have arrived.
+    # NAK: it already accepted a header and is waiting for packet 0; a resent header is not a
+    # data packet, so stop sending headers and start at packet 0.
+    sub = None
+    for attempt in range(1, 4):
+        tx(msgs[0])
+        sub, raw = wait_hs(8)
+        if sub == 0x7f:
+            print(f'header ACK {raw.hex()}', flush=True)
+            break
+        if sub == 0x7d:
+            sys.exit(f'loader cancelled the header: {raw.hex()}')
+        if sub == 0x7e:
+            print(f'header NAK {raw.hex()} — loader is waiting for data', flush=True)
+            break
+        print(f'no header reply, attempt {attempt}', flush=True)
+    else:
         sys.exit('header not acknowledged')
     total = len(msgs) - 2
     for i, m in enumerate(msgs[1:-1]):
         for attempt in range(4):
             tx(m)
-            sub, d = wait({0x7f, 0x7e, 0x7d}, 2.0)
+            sub, raw = wait_hs(2.0)
             if sub == 0x7f:
                 break
             if sub == 0x7d:
-                sys.exit(f'loader cancelled at packet {i}')
-            print(f'packet {i}: {"NAK" if sub == 0x7e else "timeout"}, resending')
+                sys.exit(f'loader cancelled at packet {i}: {raw.hex()}')
+            print(f'packet {i}: {"NAK " + raw.hex() if sub == 0x7e else "timeout"}, resending', flush=True)
         else:
             sys.exit(f'packet {i} failed')
         if i % 200 == 0:
-            print(f'{i}/{total}')
+            print(f'{i}/{total}', flush=True)
     tx(msgs[-1])
-    print('done - loader should now verify and ask "Burn to flash?"')
+    print('done - loader should now verify and ask "Burn to flash?"', flush=True)
 
 
 def main():
