@@ -61,3 +61,20 @@ Code: Ghidra decompiles of the voice start path (0x5F4A8, 0x5F67C, 0x60334, 0x60
 - **A. Clear sends at voice end:** when a voice is released or stolen, write its four RFX sends to 0, or invalidate the block so the next note writes everything. The attack can then never pass through a stale pan. The cost may be a softer first ms if the card ramps from 0.
 - **B. Stop orphans:** in `0x194C6C`'s `0x100071C2` case, stop the orphaned partner, or have note-on clear the partner flag when the main voice is used for mono.
 - **Before either fix:** reproduce on hardware with an RFX card, using razmo's steps with a recording (as for issue #5). Then add a probe that reads the `0x100071C0..C4` counters after the repro, which shows whether orphans occur.
+
+## Build 4 probe and test (2026-11-05)
+
+- **Probe:** `patches/rfxprobe/rfxprobe.s`, SysEx parameter 195, range 0..191. It takes 180 bytes at `0x1D8F3A`, in the tail of the hole `tools/build_lfock.py` frees.
+  - 16 reads the counters at `0x100071C0` / `0x100071C2`.
+  - 17 reads `0x100071C4` plus the live orphan partners.
+  - 64 + n reads channel n: voice type, send 1 level cache, and pan cache (0xFF7F = invalidated, not yet written).
+  - Emulator check: `tools/emu_rfxprobe.py`.
+- **Test:** the pan test app's "RFX stuck pan" (`apps/eos-pantest/src/test.rs`), or `--tests rfx` on the command line. Each phase runs as follows:
+  1. Hold notes until every channel has played at the old pan (voice Pan −64, then +63; optionally a stereo preset).
+  2. Set Pan 0 and read the probe.
+  3. Play single notes, measuring L/R over the first 5 ms and over 300–1000 ms after the onset.
+  4. Read the probe again.
+- **Verdicts:**
+  - A note whose attack is more than 3 dB off-centre while its steady part is centred means a stale send at the attack (fix A).
+  - A note whose steady part is off-centre is stuck (look at the orphan counts, fix B).
+  - The probe's "last RFX pan = old" count shows whether the fill reached every channel.

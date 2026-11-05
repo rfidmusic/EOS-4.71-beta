@@ -19,10 +19,13 @@ pub const BETA2: &[u8] = include_bytes!("../data/eos471beta2.e4p");
 pub const BUILD3: &[u8] = include_bytes!("../data/eos471beta2b3.e4p");
 /// Build 3 plus the Lfo1Ck / Lfo2Ck cord. Version 2 format.
 pub const LFOCK: &[u8] = include_bytes!("../data/eos471b3lfock.e4p");
+/// EOS 4.71-beta2 build 4: b3+LfoCk, the RFX pan fix and the RFX probe. Version 2 format.
+pub const BUILD4: &[u8] = include_bytes!("../data/eos471beta2b4.e4p");
 
 /// Which OS to build from the user's EOS 4.70.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Version {
+    Build4,
     Build3,
     LfoCk,
     Beta2,
@@ -34,6 +37,7 @@ impl Version {
     /// The embedded patch for this version (none for the original 4.70).
     pub fn patch(self) -> Option<&'static [u8]> {
         match self {
+            Version::Build4 => Some(BUILD4),
             Version::Build3 => Some(BUILD3),
             Version::LfoCk => Some(LFOCK),
             Version::Beta2 => Some(BETA2),
@@ -175,13 +179,16 @@ mod tests {
     #[test]
     fn embedded_patches() {
         let (a, b, c, d) = (parse(BETA1).unwrap(), parse(BETA2).unwrap(), parse(BUILD3).unwrap(), parse(LFOCK).unwrap());
-        assert!(a.stock_sha == b.stock_sha && b.stock_sha == c.stock_sha && c.stock_sha == d.stock_sha, "all apply to the same EOS 4.70");
-        assert!(a.len == b.len && b.len == c.len && c.len == d.len);
+        let e = parse(BUILD4).unwrap();
+        assert!(a.stock_sha == b.stock_sha && b.stock_sha == c.stock_sha && c.stock_sha == d.stock_sha && d.stock_sha == e.stock_sha,
+                "all apply to the same EOS 4.70");
+        assert!(a.len == b.len && b.len == c.len && c.len == d.len && d.len == e.len);
         assert_eq!(a.name, "EOS 4.71-beta");
         assert_eq!(b.name, "EOS 4.71-beta2 build 2");
         assert_eq!(c.name, "EOS 4.71-beta2 build 3");
         assert_eq!(d.name, "EOS 4.71-beta2 b3+LfoCk");
-        for p in [&a, &b, &c, &d] {
+        assert_eq!(e.name, "EOS 4.71-beta2 build 4");
+        for p in [&a, &b, &c, &d, &e] {
             let mut last = 0;
             for op in &p.ops {
                 let (off, n) = match op {
@@ -197,7 +204,7 @@ mod tests {
 
     #[test]
     fn rejects_truncated_patches() {
-        for p in [BETA1, BETA2, BUILD3, LFOCK] {
+        for p in [BETA1, BETA2, BUILD3, LFOCK, BUILD4] {
             for cut in [p.len() - 1, p.len() / 2, 100] {
                 assert!(parse(&p[..cut]).is_err(), "truncated patch accepted");
             }

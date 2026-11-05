@@ -2,7 +2,16 @@
 
 ## EOS 4.71-beta2 build 4 (not released)
 
-Build 3 plus the Lfo1Ck and Lfo2Ck cord destinations (b3+LfoCk, below) and the RFX pan fix.
+Header name **EOS 4.71-beta2 build 4**, image checksum `0885ece0`. Contains b3+LfoCk (below, PR #8), the RFX pan
+fix and an RFX probe for the pan test. Built by `tools/build_b4.py`; the flasher patch is
+`apps/eos-core/data/eos471beta2b4.e4p` (offered as a test choice; build 3 stays the default). Checked in the
+emulator:
+- `tools/emu_rfxpan.py`: 3,072 send writes, 0 mismatches.
+- `tools/emu_rfxprobe.py`: 5,560 probe reads, 0 failures.
+- `tools/emu_lfock.py`: 2,575 checks, 0 failures.
+- `tools/emu_listorder.py`: 74 indexes, 0 failures.
+
+Not yet run on hardware.
 
 ### Fixed: pan on the RFX card
 - Voices sent to the RFX card used a pan law about 2.5 times too steep, a stock EOS 4.70 bug. Centre was 7.5 dB
@@ -10,6 +19,18 @@ Build 3 plus the Lfo1Ck and Lfo2Ck cord destinations (b3+LfoCk, below) and the R
 - The RFX pan table now follows the same law as the main outputs: 0 dB at hard pan and 3 dB down on both sides at
   centre. Centre is 4.5 dB louder than before; hard-panned sounds are unchanged.
 - Checked in the emulator (`tools/emu_rfxpan.py`); not yet measured on hardware.
+
+### New: RFX probe and the "RFX stuck pan" test
+- RFX-32 owners reported (2002–2004) that a note can start at, or stay at, the pan an earlier note on the same
+  channel had (notes/rfx_bugs.md).
+- The pan test app has a fourth test for it, RFX stuck pan:
+  - It fills every channel hard left, then hard right (optionally with a stereo preset).
+  - It then plays notes at Pan 0.
+  - It compares each note's first 5 ms with its steady part.
+- On build 4 the test also reads SysEx parameter 195:
+  - E-mu's own counters of orphaned stereo-partner voices, and the live orphans;
+  - each channel's voice type and the last pan written to the RFX.
+- The probe is read-only and has no hooks.
 
 ## EOS 4.71-beta2 b3+LfoCk
 

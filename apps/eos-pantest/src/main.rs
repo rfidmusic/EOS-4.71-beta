@@ -1,6 +1,7 @@
 //! EOS Pan Test: measures how far the E4's pan controls really pan (EOS 4.70 bug: voice Pan, Multimode
 //! Pan and MIDI CC10 reach hard left/right at half range; fixed in EOS 4.71-beta; the centre is about
-//! 0.24 dB right-heavy in 4.70 and 4.71-beta, balanced in 4.71-beta2).
+//! 0.24 dB right-heavy in 4.70 and 4.71-beta, balanced in 4.71-beta2), and probes the RFX-32 "stuck pan"
+//! reports (a new note starting at the pan an earlier note on that channel had; notes/rfx_bugs.md).
 //!
 //! Sends the same editor SysEx and notes as the project's hardware tests (tools/hw_pan_test.py), records
 //! the chosen audio input pair(s) and reports L/R levels per setting. Results can be saved (CSV + WAV) and
@@ -36,6 +37,7 @@ struct App {
     running: Option<(Arc<AtomicBool>, Receiver<Event>)>,
     last_dir: Option<std::path::PathBuf>,
     takes: Vec<(String, Vec<f32>, usize, u32)>,
+    probe: Vec<String>,
 }
 
 impl App {
@@ -57,6 +59,7 @@ impl App {
             running: None,
             last_dir: None,
             takes: vec![],
+            probe: vec![],
         };
         a.refresh();
         a
@@ -105,6 +108,7 @@ impl App {
         cfg.pairs = pairs;
         self.rows.clear();
         self.takes.clear();
+        self.probe.clear();
         let stop = Arc::new(AtomicBool::new(false));
         let rx = test::spawn(cfg, stop.clone());
         self.running = Some((stop, rx));
@@ -124,6 +128,10 @@ impl eframe::App for App {
                 match ev {
                     Event::Log(s) => self.log.push(s),
                     Event::Row(r) => self.rows.push(r),
+                    Event::Probe(s) => {
+                        self.log.push(s.clone());
+                        self.probe.push(s)
+                    }
                     Event::Take(name, data, ch, rate) => self.takes.push((name, data, ch, rate)),
                     Event::Progress(p) => self.progress = p,
                     Event::Done(r) => {
@@ -223,6 +231,24 @@ impl eframe::App for App {
                     ui.checkbox(&mut self.cfg.tests[0], TestKind::VoicePan.label());
                     ui.checkbox(&mut self.cfg.tests[1], TestKind::MultiPan.label());
                     ui.checkbox(&mut self.cfg.tests[2], TestKind::Cc10.label());
+                    ui.checkbox(&mut self.cfg.tests[3], TestKind::RfxStuck.label())
+                        .on_hover_text("For units with an RFX-32: fills every channel hard left, then hard right, \
+                                        then plays notes at Pan 0 and checks they start and stay centred.");
+                    if self.cfg.tests[3] {
+                        ui.horizontal(|ui| {
+                            ui.label("Voices");
+                            ui.selectable_value(&mut self.cfg.voices, 64, "64");
+                            ui.selectable_value(&mut self.cfg.voices, 128, "128");
+                            ui.label("Notes per phase");
+                            ui.add(egui::DragValue::new(&mut self.cfg.stuck_notes).range(4..=64));
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Stereo preset (-1 = skip)");
+                            ui.add(egui::DragValue::new(&mut self.cfg.stereo_program).range(-1..=127))
+                                .on_hover_text("A preset with a stereo sample: adds a mono-after-stereo phase.");
+                        });
+                        ui.checkbox(&mut self.cfg.probe, "Read the RFX probe (EOS 4.71-beta2 build 4)");
+                    }
                     ui.horizontal(|ui| {
                         ui.label("Pan values");
                         ui.text_edit_singleline(&mut self.cfg.pan_values);
@@ -238,7 +264,8 @@ impl eframe::App for App {
                         egui::ComboBox::from_id_salt("fw")
                             .selected_text(&self.firmware)
                             .show_ui(ui, |ui| {
-                                for f in ["EOS 4.70", "EOS 4.71-beta", "EOS 4.71-beta2", "other (see notes)"] {
+                                for f in ["EOS 4.70", "EOS 4.71-beta", "EOS 4.71-beta2", "EOS 4.71-beta2 build 3", "EOS 4.71-beta2 build 4",
+                                          "other (see notes)"] {
                                     ui.selectable_value(&mut self.firmware, f.to_string(), f);
                                 }
                             });
@@ -263,7 +290,7 @@ impl eframe::App for App {
                 ui.add(egui::ProgressBar::new(self.progress).show_percentage().desired_width(220.0));
                 if ui.add_enabled(!busy && !self.rows.is_empty(), egui::Button::new("Save CSV + WAV…")).clicked() {
                     if let Some(dir) = rfd::FileDialog::new().pick_folder() {
-                        match report::save(&dir, &self.rows, &self.takes, &self.firmware, &self.notes) {
+                        match report::save(&dir, &self.rows, &self.takes, &self.firmware, &self.notes, &self.probe) {
                             Ok(n) => self.log.push(format!("Saved {n} files to {}", dir.display())),
                             Err(e) => self.log.push(format!("Save failed: {e}")),
                         }
@@ -275,7 +302,7 @@ impl eframe::App for App {
                     .on_hover_text("Opens a pre-filled issue in the project repository in your browser; you review and submit it.")
                     .clicked()
                 {
-                    let url = report::issue_url(&self.rows, &self.firmware, &self.notes, &self.cfg, self.devices.get(self.dev_sel));
+                    let url = report::issue_url(&self.rows, &self.firmware, &self.notes, &self.cfg, self.devices.get(self.dev_sel), &self.probe);
                     match report::open_browser(&url) {
                         Ok(_) => self.log.push("Opened the GitHub issue form in your browser. Attach the saved CSV/WAV if you like.".into()),
                         Err(e) => self.log.push(format!("Could not open the browser: {e}")),
@@ -288,7 +315,7 @@ impl eframe::App for App {
             ui.separator();
             egui::ScrollArea::vertical().id_salt("rows").max_height(330.0).show(ui, |ui| {
                 egui::Grid::new("res").striped(true).show(ui, |ui| {
-                    for h in ["test", "value", "inputs", "L dB", "R dB", "L−R dB"] {
+                    for h in ["test", "value", "inputs", "L dB", "R dB", "L−R dB", "note", "attack L−R dB"] {
                         ui.strong(h);
                     }
                     ui.end_row();
@@ -299,6 +326,10 @@ impl eframe::App for App {
                         ui.label(format!("{:.2}", r.l_db));
                         ui.label(format!("{:.2}", r.r_db));
                         ui.label(format!("{:+.2}", r.l_db - r.r_db));
+                        if r.test == TestKind::RfxStuck {
+                            ui.label(r.step.to_string());
+                            ui.label(format!("{:+.2}", r.a_l_db - r.a_r_db));
+                        }
                         ui.end_row();
                     }
                 });
@@ -314,8 +345,9 @@ impl eframe::App for App {
 }
 
 /// Command-line mode (same test code, no window):
-/// eos-pantest --cli --midi-out NAME [--midi-in NAME] --audio NAME [--pair L,R]... [--tests voice,multi,cc10]
+/// eos-pantest --cli --midi-out NAME [--midi-in NAME] --audio NAME [--pair L,R]... [--tests voice,multi,cc10,rfx]
 ///             [--device-id N] [--channel N] [--program N] [--key N] [--extra-channels 2,3,4]
+///             [--voices 64|128] [--stuck-notes N] [--stereo-program N] [--no-probe]
 fn cli(args: &[String]) -> Result<(), String> {
     let mut cfg = Config::default();
     let mut i = 0;
@@ -340,6 +372,14 @@ fn cli(args: &[String]) -> Result<(), String> {
             "--extra-channels" => cfg.extra_channels = v,
             "--pan-values" => cfg.pan_values = v,
             "--cc-values" => cfg.cc_values = v,
+            "--voices" => cfg.voices = v.parse().map_err(|_| "voices")?,
+            "--stuck-notes" => cfg.stuck_notes = v.parse().map_err(|_| "stuck notes")?,
+            "--stereo-program" => cfg.stereo_program = v.parse().map_err(|_| "stereo program")?,
+            "--no-probe" => {
+                cfg.probe = false;
+                i += 1;
+                continue;
+            }
             _ => {
                 i += 1;
                 continue;
@@ -354,7 +394,7 @@ fn cli(args: &[String]) -> Result<(), String> {
         cfg.pairs.push((0, 1));
     }
     if let Some(t) = tests {
-        cfg.tests = [t.contains("voice"), t.contains("multi"), t.contains("cc10")];
+        cfg.tests = [t.contains("voice"), t.contains("multi"), t.contains("cc10"), t.contains("rfx")];
     }
     let rows = test::run_blocking(&cfg)?;
     for v in report::verdicts(&rows) {

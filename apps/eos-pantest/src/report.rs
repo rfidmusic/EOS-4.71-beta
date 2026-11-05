@@ -1,7 +1,7 @@
 //! Verdicts, saving (CSV + WAV) and the GitHub issue report.
 
 use crate::audio::DeviceInfo;
-use crate::test::{Config, Row, TestKind};
+use crate::test::{Config, Row, TestKind, STUCK_DB};
 
 pub const REPO: &str = "rfidmusic/EOS-4.71-beta";
 const HARD_DB: f64 = 60.0; // one side more than 60 dB down = hard panned
@@ -48,31 +48,61 @@ pub fn verdicts(rows: &[Row]) -> Vec<String> {
             });
         }
     }
+    out.extend(stuck_verdicts(rows));
     out
 }
 
+/// RFX stuck pan: per phase, how many notes played at Pan 0 started (attack) or stayed (steady) off-centre.
+fn stuck_verdicts(rows: &[Row]) -> Vec<String> {
+    let rs: Vec<&Row> = rows.iter().filter(|r| r.test == TestKind::RfxStuck).collect();
+    let Some(first) = rs.first() else { return vec![] };
+    let pair = first.pair;
+    let mut olds: Vec<i32> = rs.iter().map(|r| r.value).collect();
+    olds.dedup();
+    olds.into_iter()
+        .map(|old| {
+            let ph: Vec<&&Row> = rs.iter().filter(|r| r.value == old && r.pair == pair).collect();
+            let stuck = ph.iter().filter(|r| (r.l_db - r.r_db).abs() > STUCK_DB).count();
+            let click = ph.iter().filter(|r| (r.l_db - r.r_db).abs() <= STUCK_DB && (r.a_l_db - r.a_r_db).abs() > STUCK_DB).count();
+            let worst = ph.iter().map(|r| r.a_l_db - r.a_r_db).fold(0.0f64, |m, x| if x.abs() > m.abs() { x } else { m });
+            let from = if old == 100 { "a stereo preset".to_string() } else { format!("Pan {old}") };
+            let mut v = if stuck + click == 0 {
+                format!("{}: after {from}, all {} notes at Pan 0 centred from the attack on (no stuck pan)", TestKind::RfxStuck.label(), ph.len())
+            } else {
+                format!("{}: after {from}, {click} of {} notes started off-centre (attack) and {stuck} stayed off-centre", TestKind::RfxStuck.label(), ph.len())
+            };
+            v += &format!("; largest attack L-R {worst:+.1} dB");
+            v
+        })
+        .collect()
+}
+
 pub fn csv(rows: &[Row]) -> String {
-    let mut s = String::from("test,value,input_l,input_r,l_db,r_db,l_minus_r_db\n");
+    let mut s = String::from("test,value,input_l,input_r,l_db,r_db,l_minus_r_db,step,attack_l_db,attack_r_db\n");
     for r in rows {
         s += &format!(
-            "{},{},{},{},{:.2},{:.2},{:.2}\n",
+            "{},{},{},{},{:.2},{:.2},{:.2},{},{:.2},{:.2}\n",
             r.test.short(),
             r.value,
             r.pair.0 + 1,
             r.pair.1 + 1,
             r.l_db,
             r.r_db,
-            r.l_db - r.r_db
+            r.l_db - r.r_db,
+            r.step,
+            r.a_l_db,
+            r.a_r_db
         );
     }
     s
 }
 
-pub fn save(dir: &std::path::Path, rows: &[Row], takes: &[(String, Vec<f32>, usize, u32)], fw: &str, notes: &str) -> Result<usize, String> {
+pub fn save(dir: &std::path::Path, rows: &[Row], takes: &[(String, Vec<f32>, usize, u32)], fw: &str, notes: &str,
+            probe: &[String]) -> Result<usize, String> {
     let mut n = 0;
     std::fs::write(dir.join("pan_test.csv"), csv(rows)).map_err(|e| e.to_string())?;
     n += 1;
-    std::fs::write(dir.join("pan_test_summary.txt"), format!("firmware: {fw}\n{}\n\nnotes:\n{notes}\n", verdicts(rows).join("\n")))
+    std::fs::write(dir.join("pan_test_summary.txt"), format!("firmware: {fw}\n{}\n\nRFX probe:\n{}\n\nnotes:\n{notes}\n", verdicts(rows).join("\n"), probe.join("\n")))
         .map_err(|e| e.to_string())?;
     n += 1;
     for (name, data, ch, rate) in takes {
@@ -99,7 +129,7 @@ fn enc(s: &str) -> String {
 }
 
 /// URL of a pre-filled "Pan test report" issue in the project repository.
-pub fn issue_url(rows: &[Row], fw: &str, notes: &str, cfg: &Config, dev: Option<&DeviceInfo>) -> String {
+pub fn issue_url(rows: &[Row], fw: &str, notes: &str, cfg: &Config, dev: Option<&DeviceInfo>, probe: &[String]) -> String {
     let mut body = String::new();
     body += &format!("### Pan test report\n\n**Firmware:** {fw}\n**App:** eos-pantest {}\n**OS:** {}\n",
         env!("CARGO_PKG_VERSION"), std::env::consts::OS);
@@ -113,9 +143,16 @@ pub fn issue_url(rows: &[Row], fw: &str, notes: &str, cfg: &Config, dev: Option<
     for v in verdicts(rows) {
         body += &format!("- {v}\n");
     }
-    body += "\n#### Measurements (L/R RMS 300-1000 ms after the onset)\n\n| test | value | inputs | L dB | R dB | L-R dB |\n|---|---|---|---|---|---|\n";
+    if !probe.is_empty() {
+        body += "\n#### RFX probe\n";
+        for p in probe {
+            body += &format!("- {p}\n");
+        }
+    }
+    body += "\n#### Measurements (L/R RMS 300-1000 ms after the onset; RFX stuck pan: value = old pan, note, attack = first 5 ms)\n\n| test | value | inputs | L dB | R dB | L-R dB | note | attack L-R dB |\n|---|---|---|---|---|---|---|---|\n";
     for r in rows {
-        body += &format!("| {} | {} | {}/{} | {:.2} | {:.2} | {:+.2} |\n", r.test.short(), r.value, r.pair.0 + 1, r.pair.1 + 1, r.l_db, r.r_db, r.l_db - r.r_db);
+        let att = if r.test == TestKind::RfxStuck { format!("{} | {:+.2}", r.step, r.a_l_db - r.a_r_db) } else { " | ".into() };
+        body += &format!("| {} | {} | {}/{} | {:.2} | {:.2} | {:+.2} | {att} |\n", r.test.short(), r.value, r.pair.0 + 1, r.pair.1 + 1, r.l_db, r.r_db, r.l_db - r.r_db);
     }
     body += &format!("\n#### Notes\n{}\n", if notes.trim().is_empty() { "(none)" } else { notes.trim() });
     // keep the URL within what browsers and GitHub accept
@@ -135,4 +172,35 @@ pub fn open_browser(url: &str) -> Result<(), String> {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let r = std::process::Command::new("xdg-open").arg(url).spawn();
     r.map(|_| ()).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn row(old: i32, step: u32, steady: (f64, f64), attack: (f64, f64)) -> Row {
+        Row { test: TestKind::RfxStuck, value: old, pair: (0, 1), l_db: steady.0, r_db: steady.1, step, a_l_db: attack.0, a_r_db: attack.1 }
+    }
+
+    #[test]
+    fn stuck_pan_counts_clicks_and_stuck_notes() {
+        let rows = vec![
+            row(-64, 1, (-20.0, -20.0), (-20.0, -20.2)), // clean
+            row(-64, 2, (-20.0, -20.1), (-18.0, -40.0)), // starts on the old (left) side
+            row(-64, 3, (-15.0, -30.0), (-15.0, -30.0)), // stays left
+            row(63, 1, (-20.0, -20.0), (-20.0, -20.0)),
+        ];
+        let v = stuck_verdicts(&rows);
+        assert_eq!(v.len(), 2);
+        assert!(v[0].contains("after Pan -64, 1 of 3 notes started off-centre (attack) and 1 stayed off-centre"), "{}", v[0]);
+        assert!(v[0].contains("+22.0 dB"), "{}", v[0]);
+        assert!(v[1].contains("after Pan 63, all 1 notes at Pan 0 centred"), "{}", v[1]);
+    }
+
+    #[test]
+    fn csv_has_attack_columns() {
+        let c = csv(&[row(-64, 2, (-20.0, -20.0), (-18.0, -40.0))]);
+        assert!(c.starts_with("test,value,input_l,input_r,l_db,r_db,l_minus_r_db,step,attack_l_db,attack_r_db\n"));
+        assert!(c.contains("rfx_stuck,-64,1,2,-20.00,-20.00,0.00,2,-18.00,-40.00"));
+    }
 }
