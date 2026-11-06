@@ -122,8 +122,9 @@ Old reports say that with an RFX-32 fitted, a note can start at, or stay at, the
 channel had. To help find the cause:
 
 1. Flash **EOS 4.71-beta2 build 4** with EOS Flasher.
-2. In **EOS Pan Test**, tick **RFX stuck pan** and set Voices to 64 or 128. Optionally, give a preset number with a
-   stereo sample to add a mono-after-stereo phase. Keep the RFX buses empty or bypassed so only the dry voice
+2. Load the [test bank](testbank/README.md). In **EOS Pan Test**, tick **RFX stuck pan** and set Voices to 64 or 128.
+   The test plays preset 004 (sine on every key). Optionally, set Stereo preset to 001 to add a mono-after-stereo
+   phase. Keep the RFX buses empty or bypassed so only the dry voice
    reaches Main.
 3. Run the test, press **Save CSV + WAV**, then **Report to GitHub**.
 4. Submit the issue that opens, and drag the saved folder (zipped) into it.

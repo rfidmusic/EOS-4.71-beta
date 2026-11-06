@@ -1,5 +1,13 @@
 # Changelog: EOS 4.70 → EOS 4.71-beta
 
+## Unreleased
+
+- Test bank: new preset 004 "RFX Pan Sine", the 801 Hz sine on every key. Preset 000 only sounds on keys 72–79, so
+  the RFX stuck pan test could not fill every channel with it. Added by `tools/add_rfx_preset.py`; every other
+  preset and sample is unchanged.
+- EOS Pan Test v0.4.1: the RFX stuck pan test plays preset 004 by default (new Preset field, `--stuck-program N`),
+  then returns to the main test preset.
+
 ## EOS 4.71-beta2 build 4 (not released)
 
 Header name **EOS 4.71-beta2 build 4**, image checksum `0885ece0`. Contains b3+LfoCk (below, PR #8), the RFX pan

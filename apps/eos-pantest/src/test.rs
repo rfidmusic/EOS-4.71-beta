@@ -59,8 +59,10 @@ pub struct Config {
     pub tests: [bool; 4],
     pub pan_values: String,
     pub cc_values: String,
-    /// RFX stuck pan: voices on the unit (64 or 128), notes per phase, stereo preset for the mono-after-stereo
-    /// phase (-1 = skip), and whether the firmware has the RFX probe (build 4).
+    /// RFX stuck pan: preset it plays (test bank 004: the sine on every key, so the fill notes use every
+    /// channel), voices on the unit (64 or 128), notes per phase, stereo preset for the mono-after-stereo phase
+    /// (-1 = skip, test bank 001), and whether the firmware has the RFX probe (build 4).
+    pub stuck_program: u8,
     pub voices: u32,
     pub stuck_notes: u32,
     pub stereo_program: i32,
@@ -84,6 +86,7 @@ impl Default for Config {
             tests: [true, true, true, false],
             pan_values: "-64,-48,-40,-32,-24,-16,-8,0,8,16,24,32,40,48,63".into(),
             cc_values: "0,16,32,48,63,64,65,80,96,112,127".into(),
+            stuck_program: 4,
             voices: 128,
             stuck_notes: 16,
             stereo_program: -1,
@@ -212,24 +215,7 @@ fn run(cfg: &Config, stop: &AtomicBool, tx: &Sender<Event>) -> Result<(), String
         }
     }
     let mut rm = Remote { out: &mut out, rx: &mrx, dev: cfg.device_id };
-    // Program change on every playing channel, then the editor's current preset/voice.
-    for &c in &chans {
-        rm.short(&[0xC0 | c, cfg.program & 0x7f])?;
-    }
-    sleep(500);
-    if cfg.prepare {
-        rm.set(223, cfg.program as i32)?; // current preset (editor)
-        rm.set(225, 0)?; // current voice
-        sleep(100);
-        for n in 0..18 {
-            rm.set(id::cord(n).2, 0)?;
-        }
-        rm.set(id::FILTER_TYPE, 0)?;
-        sleep(150);
-        rm.set(id::FILTER_FREQ, 255)?;
-        rm.set(id::FILTER_Q, 0)?;
-        sleep(300);
-    }
+    select_preset(&mut rm, &chans, cfg.program, cfg.prepare)?;
     match rm.get(id::VOICE_PAN) {
         Some(v) => log(format!("E4 answers on device ID {} (voice Pan reads {v}).", cfg.device_id)),
         None => log(format!(
@@ -302,6 +288,10 @@ fn run(cfg: &Config, stop: &AtomicBool, tx: &Sender<Event>) -> Result<(), String
         let _ = tx.send(Event::Progress((n + 1) as f32 / total));
     }
     if cfg.tests[3] {
+        if cfg.stuck_program != cfg.program {
+            log(format!("RFX stuck pan uses preset {:03}.", cfg.stuck_program));
+            select_preset(&mut rm, &chans, cfg.stuck_program, cfg.prepare)?;
+        }
         centre(&mut rm, &chans)?;
         sleep(150);
         let mut phases: Vec<(i32, Option<u8>)> = vec![(-64, None), (63, None)];
@@ -316,9 +306,35 @@ fn run(cfg: &Config, stop: &AtomicBool, tx: &Sender<Event>) -> Result<(), String
             stuck_phase(&mut rm, cfg, &chans, &rec, old, stereo, stop, tx)?;
             let _ = tx.send(Event::Progress((jobs.len() + k + 1) as f32 / total));
         }
+        if cfg.stuck_program != cfg.program {
+            select_preset(&mut rm, &chans, cfg.program, false)?;
+        }
     }
     // leave everything centred
     centre(&mut rm, &chans)?;
+    Ok(())
+}
+
+/// Program change on every playing channel and make it the editor's current preset/voice; with `prepare`,
+/// also cords to 0 and filter wide open (not saved).
+fn select_preset(rm: &mut Remote, chans: &[u8], program: u8, prepare: bool) -> Result<(), String> {
+    for &c in chans {
+        rm.short(&[0xC0 | c, program & 0x7f])?;
+    }
+    sleep(500);
+    rm.set(223, program as i32)?; // current preset (editor)
+    rm.set(225, 0)?; // current voice
+    sleep(100);
+    if prepare {
+        for n in 0..18 {
+            rm.set(id::cord(n).2, 0)?;
+        }
+        rm.set(id::FILTER_TYPE, 0)?;
+        sleep(150);
+        rm.set(id::FILTER_FREQ, 255)?;
+        rm.set(id::FILTER_Q, 0)?;
+        sleep(300);
+    }
     Ok(())
 }
 
@@ -355,7 +371,7 @@ fn stuck_phase(rm: &mut Remote, cfg: &Config, chans: &[u8], rec: &Recorder, old:
     }
     sleep(1500);
     if stereo.is_some() {
-        rm.short(&[0xC0 | c0, cfg.program & 0x7f])?;
+        rm.short(&[0xC0 | c0, cfg.stuck_program & 0x7f])?;
         sleep(500);
     }
     rm.set(id::VOICE_PAN, 0)?;

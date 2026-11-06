@@ -243,9 +243,12 @@ impl eframe::App for App {
                             ui.add(egui::DragValue::new(&mut self.cfg.stuck_notes).range(4..=64));
                         });
                         ui.horizontal(|ui| {
+                            ui.label("Preset");
+                            ui.add(egui::DragValue::new(&mut self.cfg.stuck_program).range(0..=127))
+                                .on_hover_text("Test bank preset 004: the sine on every key, so the held notes use every channel.");
                             ui.label("Stereo preset (-1 = skip)");
                             ui.add(egui::DragValue::new(&mut self.cfg.stereo_program).range(-1..=127))
-                                .on_hover_text("A preset with a stereo sample: adds a mono-after-stereo phase.");
+                                .on_hover_text("A preset with a stereo sample (test bank 001): adds a mono-after-stereo phase.");
                         });
                         ui.checkbox(&mut self.cfg.probe, "Read the RFX probe (EOS 4.71-beta2 build 4)");
                     }
@@ -347,7 +350,7 @@ impl eframe::App for App {
 /// Command-line mode (same test code, no window):
 /// eos-pantest --cli --midi-out NAME [--midi-in NAME] --audio NAME [--pair L,R]... [--tests voice,multi,cc10,rfx]
 ///             [--device-id N] [--channel N] [--program N] [--key N] [--extra-channels 2,3,4]
-///             [--voices 64|128] [--stuck-notes N] [--stereo-program N] [--no-probe]
+///             [--stuck-program N] [--voices 64|128] [--stuck-notes N] [--stereo-program N] [--no-probe]
 fn cli(args: &[String]) -> Result<(), String> {
     let mut cfg = Config::default();
     let mut i = 0;
@@ -372,6 +375,7 @@ fn cli(args: &[String]) -> Result<(), String> {
             "--extra-channels" => cfg.extra_channels = v,
             "--pan-values" => cfg.pan_values = v,
             "--cc-values" => cfg.cc_values = v,
+            "--stuck-program" => cfg.stuck_program = v.parse().map_err(|_| "stuck program")?,
             "--voices" => cfg.voices = v.parse().map_err(|_| "voices")?,
             "--stuck-notes" => cfg.stuck_notes = v.parse().map_err(|_| "stuck notes")?,
             "--stereo-program" => cfg.stereo_program = v.parse().map_err(|_| "stereo program")?,
