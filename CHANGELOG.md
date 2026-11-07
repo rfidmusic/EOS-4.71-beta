@@ -1,6 +1,12 @@
 # Changelog: EOS 4.70 → EOS 4.71-beta
 
-## Unreleased
+## EOS Pan Test v0.4.3 (in the build 4 release)
+
+- EOS Pan Test v0.4.3: the RFX stuck pan verdict no longer calls a silent run "centred" (issue #12: every take was at
+  the -96 dB noise floor, and 0.4.2 reported "no stuck pan"). When every note in a phase is below -70 dB, the verdict
+  now says "NO SOUND recorded … result not valid". When only some are, it counts them.
+
+## EOS Pan Test v0.4.2 (pre-release v4.71-beta.2-build.4-apps0.4.2)
 
 - EOS Pan Test v0.4.2: **Load the test sound over MIDI** (on by default). Before the tests, the app sends a
   looped 441 Hz sine as sample 999 (MIDI Sample Dump) and builds preset 004 "RFX Pan Sine" from it (editor preset
@@ -20,7 +26,7 @@
   10,101-character URL, which GitHub refused). The header and verdicts always go in; probe lines, measurement rows and
   notes go in while they fit. When something is left out, the issue asks for the saved folder to be attached.
 
-## EOS 4.71-beta2 build 4 (not released)
+## EOS 4.71-beta2 build 4 (released; Latest since 2026-11-07)
 
 Header name **EOS 4.71-beta2 build 4**, image checksum `0885ece0`. Contains b3+LfoCk (below, PR #8), the RFX pan
 fix and an RFX probe for the pan test. Built by `tools/build_b4.py`; the flasher patch is

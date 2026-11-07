@@ -6,6 +6,7 @@ use crate::test::{Config, Row, TestKind, STUCK_DB};
 pub const REPO: &str = "rfidmusic/EOS-4.71-beta";
 const HARD_DB: f64 = 60.0; // one side more than 60 dB down = hard panned
 const CENTRE_OK_DB: f64 = 0.1; // |L - R| at centre within this = balanced (4.70 / 4.71-beta: about -0.24 dB)
+const SILENT_DB: f64 = -70.0; // a note whose attack and steady levels are all below this recorded no sound (noise floor about -96 dB)
 
 /// Per test: where the sweep first reaches hard left / hard right, and what that means.
 pub fn verdicts(rows: &[Row]) -> Vec<String> {
@@ -62,16 +63,24 @@ fn stuck_verdicts(rows: &[Row]) -> Vec<String> {
     olds.into_iter()
         .map(|old| {
             let ph: Vec<&&Row> = rs.iter().filter(|r| r.value == old && r.pair == pair).collect();
+            let from = if old == 100 { "a stereo preset".to_string() } else { format!("Pan {old}") };
+            // Silence has L-R near 0 dB, so without this check it would read as "centred" (issue #12).
+            let silent = ph.iter().filter(|r| [r.l_db, r.r_db, r.a_l_db, r.a_r_db].iter().all(|x| !(*x > SILENT_DB))).count();
+            if silent == ph.len() {
+                return format!("{}: after {from}, NO SOUND recorded on any of the {} notes (all below {SILENT_DB} dB): result not valid. Check that the test preset sounds on the E4 and that the selected audio inputs carry its outputs", TestKind::RfxStuck.label(), ph.len());
+            }
             let stuck = ph.iter().filter(|r| (r.l_db - r.r_db).abs() > STUCK_DB).count();
             let click = ph.iter().filter(|r| (r.l_db - r.r_db).abs() <= STUCK_DB && (r.a_l_db - r.a_r_db).abs() > STUCK_DB).count();
             let worst = ph.iter().map(|r| r.a_l_db - r.a_r_db).fold(0.0f64, |m, x| if x.abs() > m.abs() { x } else { m });
-            let from = if old == 100 { "a stereo preset".to_string() } else { format!("Pan {old}") };
             let mut v = if stuck + click == 0 {
                 format!("{}: after {from}, all {} notes at Pan 0 centred from the attack on (no stuck pan)", TestKind::RfxStuck.label(), ph.len())
             } else {
                 format!("{}: after {from}, {click} of {} notes started off-centre (attack) and {stuck} stayed off-centre", TestKind::RfxStuck.label(), ph.len())
             };
             v += &format!("; largest attack L-R {worst:+.1} dB");
+            if silent > 0 {
+                v += &format!("; {silent} notes recorded no sound and count as centred");
+            }
             v
         })
         .collect()
@@ -229,6 +238,19 @@ mod tests {
         assert!(v[0].contains("after Pan -64, 1 of 3 notes started off-centre (attack) and 1 stayed off-centre"), "{}", v[0]);
         assert!(v[0].contains("+22.0 dB"), "{}", v[0]);
         assert!(v[1].contains("after Pan 63, all 1 notes at Pan 0 centred"), "{}", v[1]);
+    }
+
+    #[test]
+    fn stuck_silence_is_not_centred() {
+        // issue #12: every take at the noise floor; must not say "no stuck pan"
+        let rows: Vec<Row> = (1..=16).map(|i| row(-64, i, (-96.5, -96.4), (-96.7, -97.1))).collect();
+        let v = stuck_verdicts(&rows);
+        assert!(v[0].contains("NO SOUND") && !v[0].contains("no stuck pan"), "{}", v[0]);
+        // one silent note among sounding ones is counted, not fatal
+        let mut rows: Vec<Row> = (1..=3).map(|i| row(63, i, (-20.0, -20.0), (-20.0, -20.0))).collect();
+        rows.push(row(63, 4, (-96.5, -96.4), (-96.7, -97.1)));
+        let v = stuck_verdicts(&rows);
+        assert!(v[0].contains("no stuck pan") && v[0].contains("1 notes recorded no sound"), "{}", v[0]);
     }
 
     #[test]
