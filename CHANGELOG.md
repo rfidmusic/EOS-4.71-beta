@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- EOS Pan Test v0.4.2: **Load the test sound over MIDI** (on by default). Before the tests, the app sends a
+  looped 441 Hz sine as sample 999 (MIDI Sample Dump) and builds preset 004 "RFX Pan Sine" from it (editor preset
+  dump), both into RAM only. Every test then plays preset 004 through the Main outputs, so testers don't need to
+  load a bank. The app reads back the sample name and voice count to check the load. `eos_core::testsound`;
+  research in notes/sysex_load_research.md. Checked on an E4 Platinum: handshake sample dump, preset created, voice
+  Pan sweep identical to the bank preset.
+
+## EOS Pan Test v0.4.1 (pre-release v4.71-beta.2-build.4-apps0.4.1)
+
 - Test bank: new preset 004 "RFX Pan Sine", the 801 Hz sine on every key. Preset 000 only sounds on keys 72–79, so
   the RFX stuck pan test could not fill every channel with it. Added by `tools/add_rfx_preset.py`; every other
   preset and sample is unchanged.

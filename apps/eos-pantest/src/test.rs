@@ -11,6 +11,7 @@
 
 use crate::audio::Recorder;
 use eos_core::remote::{id, Remote};
+use eos_core::testsound;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
@@ -56,6 +57,9 @@ pub struct Config {
     pub key: u8,
     pub velocity: u8,
     pub prepare: bool,
+    /// Send the test sound over MIDI first (eos_core::testsound: sample 999 and preset 004, RAM only) and play
+    /// every test on it, so no bank has to be loaded.
+    pub load_sound: bool,
     pub tests: [bool; 4],
     pub pan_values: String,
     pub cc_values: String,
@@ -83,6 +87,7 @@ impl Default for Config {
             key: 72,
             velocity: 100,
             prepare: true,
+            load_sound: true,
             tests: [true, true, true, false],
             pan_values: "-64,-48,-40,-32,-24,-16,-8,0,8,16,24,32,40,48,63".into(),
             cc_values: "0,16,32,48,63,64,65,80,96,112,127".into(),
@@ -215,6 +220,18 @@ fn run(cfg: &Config, stop: &AtomicBool, tx: &Sender<Event>) -> Result<(), String
         }
     }
     let mut rm = Remote { out: &mut out, rx: &mrx, dev: cfg.device_id };
+    let loaded;
+    let cfg = if cfg.load_sound {
+        log("Loading the test sound over MIDI (no bank needed)...".into());
+        testsound::load(&mut rm, |s| log(s)).map_err(|e| format!("loading the test sound: {e}"))?;
+        let mut c = cfg.clone();
+        c.program = testsound::PRESET as u8;
+        c.stuck_program = testsound::PRESET as u8;
+        loaded = c;
+        &loaded
+    } else {
+        cfg
+    };
     select_preset(&mut rm, &chans, cfg.program, cfg.prepare)?;
     match rm.get(id::VOICE_PAN) {
         Some(v) => log(format!("E4 answers on device ID {} (voice Pan reads {v}).", cfg.device_id)),

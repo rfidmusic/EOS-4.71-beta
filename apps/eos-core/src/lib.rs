@@ -16,6 +16,7 @@ pub mod lz;
 pub mod midi;
 pub mod patch;
 pub mod remote;
+pub mod testsound;
 pub mod sender;
 
 /// Builds an OS image ready to send from E-mu's EOS470.EXE (or a raw EOS floppy image): the stock

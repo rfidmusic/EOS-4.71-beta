@@ -185,9 +185,13 @@ impl eframe::App for App {
                         ui.label("MIDI channel");
                         ui.add(egui::DragValue::new(&mut self.cfg.channel).range(1..=16));
                     });
+                    ui.checkbox(&mut self.cfg.load_sound, "Load the test sound over MIDI (no bank needed)")
+                        .on_hover_text("Sends a looped sine as sample 999 and builds preset 004 from it, in RAM only: \
+                                        whatever is in preset 004 and sample 999 is replaced (not on disk). \
+                                        Every test then plays preset 004 through the Main outputs.");
                     ui.horizontal(|ui| {
                         ui.label("Program");
-                        ui.add(egui::DragValue::new(&mut self.cfg.program).range(0..=127));
+                        ui.add_enabled(!self.cfg.load_sound, egui::DragValue::new(&mut self.cfg.program).range(0..=127));
                         ui.label("Key");
                         ui.add(egui::DragValue::new(&mut self.cfg.key).range(0..=127));
                         ui.label("Velocity");
@@ -244,7 +248,7 @@ impl eframe::App for App {
                         });
                         ui.horizontal(|ui| {
                             ui.label("Preset");
-                            ui.add(egui::DragValue::new(&mut self.cfg.stuck_program).range(0..=127))
+                            ui.add_enabled(!self.cfg.load_sound, egui::DragValue::new(&mut self.cfg.stuck_program).range(0..=127))
                                 .on_hover_text("Test bank preset 004: the sine on every key, so the held notes use every channel.");
                             ui.label("Stereo preset (-1 = skip)");
                             ui.add(egui::DragValue::new(&mut self.cfg.stereo_program).range(-1..=127))
@@ -350,7 +354,7 @@ impl eframe::App for App {
 /// Command-line mode (same test code, no window):
 /// eos-pantest --cli --midi-out NAME [--midi-in NAME] --audio NAME [--pair L,R]... [--tests voice,multi,cc10,rfx]
 ///             [--device-id N] [--channel N] [--program N] [--key N] [--extra-channels 2,3,4]
-///             [--stuck-program N] [--voices 64|128] [--stuck-notes N] [--stereo-program N] [--no-probe]
+///             [--stuck-program N] [--voices 64|128] [--stuck-notes N] [--stereo-program N] [--no-probe] [--no-load]
 fn cli(args: &[String]) -> Result<(), String> {
     let mut cfg = Config::default();
     let mut i = 0;
@@ -379,6 +383,11 @@ fn cli(args: &[String]) -> Result<(), String> {
             "--voices" => cfg.voices = v.parse().map_err(|_| "voices")?,
             "--stuck-notes" => cfg.stuck_notes = v.parse().map_err(|_| "stuck notes")?,
             "--stereo-program" => cfg.stereo_program = v.parse().map_err(|_| "stereo program")?,
+            "--no-load" => {
+                cfg.load_sound = false;
+                i += 1;
+                continue;
+            }
             "--no-probe" => {
                 cfg.probe = false;
                 i += 1;

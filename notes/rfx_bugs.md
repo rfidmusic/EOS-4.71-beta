@@ -78,3 +78,24 @@ Code: Ghidra decompiles of the voice start path (0x5F4A8, 0x5F67C, 0x60334, 0x60
   - A note whose attack is more than 3 dB off-centre while its steady part is centred means a stale send at the attack (fix A).
   - A note whose steady part is off-centre is stuck (look at the orphan counts, fix B).
   - The probe's "last RFX pan = old" count shows whether the fill reached every channel.
+
+## First tester data (issue #11, i-am-gor, E4 Platinum + RFX-32, build 4, app 0.4.0; 2026-11-06)
+Recordings in `recordings/issue11/` (local). Tester's own bank: preset 000 a mono kick, 001 a stereo snare.
+- **The kick lasts under 20 ms**, so the app's steady window (300–1000 ms) measured silence (−98 dB) and its
+  "stayed off-centre" verdict means nothing here. The 5 ms attack window is valid (−24.5 dB).
+- **Real effect at note start:** one side is silent for exactly 33 samples at 48 kHz (0.69 ms, ~30 samples at
+  44.1 kHz, about one processing block). Meanwhile the other side plays about 3 dB louder than centre (hard-pan gain).
+  After that, both sides are identical (L−R 0.0 dB from 5 ms on). That gives the ±3.0 dB attack readings.
+  - After the Pan 63 fill: all 16 notes, R silent first, L leading.
+  - After the Pan −64 fill and after the stereo fill: only notes 15 and 16. Note 15 has R silent first, note 16 has L
+    silent first. The same notes are hit in both phases, so this looks tied to particular channels.
+  - Direction is unexpected: after a hard-right fill the stale gains should be R on, L off, but L leads. Either the
+    RFX L/R order is reversed against our model of 0x10E280, or the cause is something else. Not explained yet.
+- **Probe:** no orphans (E-mu counters 0/0/0, live 0). Voice type reads 0 on all 128 channels at every read (the reads
+  come after note-off, when the voices are free). The pan caches show the fill reached only 81 (−64) and 73 (63) of
+  128 channels with his preset; test bank preset 004 is meant to fix that.
+- **App bug:** "Report to GitHub" built a 10,101-character URL; GitHub answered 400 "request URL is too long".
+
+Issue #10 (same tester, main pan via Sub 1, build 4): full range and centre 0.00 dB on voice Pan, Multimode Pan
+and CC10, matching our hardware. Steps either side of centre differ by one table step (−8: +1.51, +8: −1.89 dB;
+CC 65: −0.37 dB), from the −64..+63 index offset.

@@ -145,6 +145,9 @@ pub fn issue_url(rows: &[Row], fw: &str, notes: &str, cfg: &Config, dev: Option<
     body += &format!("**Program/key/velocity:** {}/{}/{}  **E4 device ID:** {}  **MIDI channel:** {}{}\n",
         cfg.program, cfg.key, cfg.velocity, cfg.device_id, cfg.channel,
         if cfg.extra_channels.trim().is_empty() { String::new() } else { format!(" (+{})", cfg.extra_channels.trim()) });
+    if cfg.load_sound {
+        body += "**Test sound:** loaded over MIDI (sample 999 -> preset 004, submix Main); every test played preset 004\n";
+    }
     if let Some(d) = dev {
         body += &format!("**Audio input:** {}\n", d.label());
     }

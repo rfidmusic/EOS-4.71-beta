@@ -16,8 +16,8 @@ Data packet F0 7E cc 02 kk <120 data bytes> ll F7: kk = packet number mod 128, l
 unsigned (offset binary). Handshake: the receiver answers ACK (7F), NAK (7E, resend), WAIT (7C, wait for
 the next reply) or CANCEL (7D); with no reply within 2 s of the header the sender goes on open loop, as the
 standard allows, sending each packet no faster than the cable (41 ms) plus 20 ms.
-The E4 receives only from its MIDI Sample Dump page set to Receive (Sample Manage -> Sample Dump): start
-that first, then this tool.
+The E4 takes an SDS header on any page, with no front-panel action (parser 0x136B64 -> 0x175014; sample
+numbers 1..999; checked on hardware 2026-11-06, notes/sysex_load_research.md).
 """
 import argparse, sys, time, wave
 import numpy as np
