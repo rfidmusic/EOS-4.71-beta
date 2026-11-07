@@ -7,6 +7,9 @@
   preset and sample is unchanged.
 - EOS Pan Test v0.4.1: the RFX stuck pan test plays preset 004 by default (new Preset field, `--stuck-program N`),
   then returns to the main test preset.
+- EOS Pan Test v0.4.1: "Report to GitHub" keeps the issue URL under 6,000 characters (issue #11: 0.4.0 made a
+  10,101-character URL, which GitHub refused). The header and verdicts always go in; probe lines, measurement rows and
+  notes go in while they fit. When something is left out, the issue asks for the saved folder to be attached.
 
 ## EOS 4.71-beta2 build 4 (not released)
 

@@ -128,8 +128,17 @@ fn enc(s: &str) -> String {
     o
 }
 
-/// URL of a pre-filled "Pan test report" issue in the project repository.
+/// Longest issue URL we open. GitHub rejects longer ones with 400 "request URL is too long" (issue #11: 10,101),
+/// and its sign-in redirect for a logged-out browser fails (500) above about 6,900 (measured 2026-11-06).
+const MAX_URL: usize = 6000;
+
+/// URL of a pre-filled "Pan test report" issue in the project repository. Header and verdicts always go in; then
+/// the RFX probe lines, the measurement rows and the notes, each only while the encoded URL stays within MAX_URL.
+/// Whatever is left out is in the saved pan_test.csv / pan_test_summary.txt.
 pub fn issue_url(rows: &[Row], fw: &str, notes: &str, cfg: &Config, dev: Option<&DeviceInfo>, probe: &[String]) -> String {
+    let title = format!("Pan test report: {fw}");
+    let base = format!("https://github.com/{REPO}/issues/new?template=pan-test-report.md&labels=pan-test-report&title={}&body=", enc(&title));
+    let fits = |body: &str| base.len() + enc(body).len() <= MAX_URL;
     let mut body = String::new();
     body += &format!("### Pan test report\n\n**Firmware:** {fw}\n**App:** eos-pantest {}\n**OS:** {}\n",
         env!("CARGO_PKG_VERSION"), std::env::consts::OS);
@@ -143,25 +152,47 @@ pub fn issue_url(rows: &[Row], fw: &str, notes: &str, cfg: &Config, dev: Option<
     for v in verdicts(rows) {
         body += &format!("- {v}\n");
     }
+    // Reserve room for the notes (up to 600 characters) and the "left out" lines.
+    let notes = notes.trim();
+    let notes: String = if notes.is_empty() { "(none)".into() } else { notes.chars().take(600).collect() };
+    let notes_s = format!("\n#### Notes\n{notes}\n");
+    const CUT: &str = "\nThe full results are in the saved folder (**Save CSV + WAV**): please zip it and attach it here.\n";
+    let room = |body: &str, extra: &str| fits(&format!("{body}{extra}\n(… 999 more probe lines in pan_test_summary.txt)\n{notes_s}{CUT}"));
+    let mut cut = false;
     if !probe.is_empty() {
         body += "\n#### RFX probe\n";
-        for p in probe {
-            body += &format!("- {p}\n");
+        for (i, p) in probe.iter().enumerate() {
+            let line = format!("- {p}\n");
+            if !room(&body, &line) {
+                body += &format!("(… {} more probe lines in pan_test_summary.txt)\n", probe.len() - i);
+                cut = true;
+                break;
+            }
+            body += &line;
         }
     }
-    body += "\n#### Measurements (L/R RMS 300-1000 ms after the onset; RFX stuck pan: value = old pan, note, attack = first 5 ms)\n\n| test | value | inputs | L dB | R dB | L-R dB | note | attack L-R dB |\n|---|---|---|---|---|---|---|---|\n";
-    for r in rows {
-        let att = if r.test == TestKind::RfxStuck { format!("{} | {:+.2}", r.step, r.a_l_db - r.a_r_db) } else { " | ".into() };
-        body += &format!("| {} | {} | {}/{} | {:.2} | {:.2} | {:+.2} | {att} |\n", r.test.short(), r.value, r.pair.0 + 1, r.pair.1 + 1, r.l_db, r.r_db, r.l_db - r.r_db);
+    let head = "\n#### Measurements (L/R RMS 300-1000 ms after the onset; RFX stuck pan: value = old pan, note, attack = first 5 ms)\n\n| test | value | inputs | L dB | R dB | L-R dB | note | attack L-R dB |\n|---|---|---|---|---|---|---|---|\n";
+    if room(&body, head) {
+        body += head;
+        for (i, r) in rows.iter().enumerate() {
+            let att = if r.test == TestKind::RfxStuck { format!("{} | {:+.2}", r.step, r.a_l_db - r.a_r_db) } else { " | ".into() };
+            let line = format!("| {} | {} | {}/{} | {:.2} | {:.2} | {:+.2} | {att} |\n", r.test.short(), r.value, r.pair.0 + 1, r.pair.1 + 1, r.l_db, r.r_db, r.l_db - r.r_db);
+            if !room(&body, &line) {
+                body += &format!("\n(… {} more rows in pan_test.csv)\n", rows.len() - i);
+                cut = true;
+                break;
+            }
+            body += &line;
+        }
+    } else if !rows.is_empty() {
+        body += &format!("\n(… {} measurement rows in pan_test.csv)\n", rows.len());
+        cut = true;
     }
-    body += &format!("\n#### Notes\n{}\n", if notes.trim().is_empty() { "(none)" } else { notes.trim() });
-    // keep the URL within what browsers and GitHub accept
-    if body.len() > 6000 {
-        body.truncate(6000);
-        body += "\n… (table truncated: attach pan_test.csv)\n";
+    body += &notes_s;
+    if cut {
+        body += CUT;
     }
-    let title = format!("Pan test report: {fw}");
-    format!("https://github.com/{REPO}/issues/new?template=pan-test-report.md&labels=pan-test-report&title={}&body={}", enc(&title), enc(&body))
+    format!("{base}{}", enc(&body))
 }
 
 pub fn open_browser(url: &str) -> Result<(), String> {
@@ -195,6 +226,23 @@ mod tests {
         assert!(v[0].contains("after Pan -64, 1 of 3 notes started off-centre (attack) and 1 stayed off-centre"), "{}", v[0]);
         assert!(v[0].contains("+22.0 dB"), "{}", v[0]);
         assert!(v[1].contains("after Pan 63, all 1 notes at Pan 0 centred"), "{}", v[1]);
+    }
+
+    #[test]
+    fn issue_url_fits_github_limit() {
+        // 48 RFX rows + 41 pan rows and 7 long probe lines, as in issue #11 (10,101-character URL in 0.4.0).
+        let mut rows: Vec<Row> = (0..48).map(|i| row(-64 + (i / 16) * 64, (i % 16 + 1) as u32, (-98.15, -98.08), (-25.4, -28.4))).collect();
+        rows.extend((0..41).map(|i| Row { test: TestKind::VoicePan, value: i - 20, pair: (0, 1), l_db: -28.25, r_db: -97.89,
+                                         step: 0, a_l_db: f64::NAN, a_r_db: f64::NAN }));
+        let probe: Vec<String> = (0..7).map(|_| "RFX probe after the fill with voice Pan -64, Pan now 0: E-mu orphan counters 0 / 0 / 0, live orphan partners 0; 128 channels: mono 0 / stereo 0 / partner 0 / unused 128; last RFX pan 0: 39, last RFX pan = -64: 81, not yet written: 0".to_string()).collect();
+        let notes = "Emu E4 Platinum inc. RFX-32 — FX engine disabled ✓ ".repeat(40);
+        let url = issue_url(&rows, "EOS 4.71-beta2 build 4", &notes, &Config::default(), None, &probe);
+        assert!(url.len() <= MAX_URL, "{}", url.len());
+        assert!(url.contains(&enc("more rows in pan_test.csv")), "rows not cut");
+        assert!(url.contains(&enc("#### Verdict")) && url.contains(&enc("#### Notes")));
+        // a short report goes in whole
+        let url = issue_url(&rows[..3], "b4", "", &Config::default(), None, &probe[..1]);
+        assert!(!url.contains(&enc("more rows")) && !url.contains(&enc("please zip it")));
     }
 
     #[test]
