@@ -1,6 +1,11 @@
 # Changelog: EOS 4.70 → EOS 4.71-beta
 
-## EOS Pan Test v0.4.3 (in the build 4 release)
+## EOS Pan Test v0.4.4 (in the build 4 release)
+
+- EOS Pan Test v0.4.4: the saved WAVs keep only the measured inputs (issue #13: a 196-channel MADIface made
+  50 MB WAVs, about 1 GB per run, because every input of the interface was saved).
+
+## EOS Pan Test v0.4.3
 
 - EOS Pan Test v0.4.3: the RFX stuck pan verdict no longer calls a silent run "centred" (issue #12: every take was at
   the -96 dB noise floor, and 0.4.2 reported "no stuck pan"). When every note in a phase is below -70 dB, the verdict

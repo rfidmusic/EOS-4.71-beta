@@ -151,6 +151,18 @@ fn onset(d: &[f32], ch: usize, sel: &[usize], rate: u32) -> usize {
     env.iter().position(|&e| e > 0.2 * mx).unwrap_or(0) * w
 }
 
+/// Only the measured inputs of an interleaved take, in `sel` order without repeats, for the saved WAV.
+/// A take holds every channel of the interface (issue #13: 196 channels, about 50 MB per WAV).
+fn selected(d: &[f32], ch: usize, sel: &[usize]) -> (Vec<f32>, usize) {
+    let mut keep: Vec<usize> = vec![];
+    for &c in sel {
+        if c < ch && !keep.contains(&c) {
+            keep.push(c);
+        }
+    }
+    (d.chunks_exact(ch).flat_map(|f| keep.iter().map(move |&c| f[c])).collect(), keep.len())
+}
+
 fn rms(d: &[f32], ch: usize, c: usize, a: usize, b: usize) -> f64 {
     let frames = d.len() / ch;
     let (a, b) = (a.min(frames), b.min(frames));
@@ -301,6 +313,7 @@ fn run(cfg: &Config, stop: &AtomicBool, tx: &Sender<Event>) -> Result<(), String
                             step: 0, a_l_db: f64::NAN, a_r_db: f64::NAN };
             let _ = tx.send(Event::Row(row));
         }
+        let (d, chn) = selected(&d, chn, &sel);
         let _ = tx.send(Event::Take(format!("{}_{v}", kind.short()), d, chn, rec.rate));
         let _ = tx.send(Event::Progress((n + 1) as f32 / total));
     }
@@ -430,6 +443,7 @@ fn stuck_phase(rm: &mut Remote, cfg: &Config, chans: &[u8], rec: &Recorder, old:
             }
             let _ = tx.send(Event::Row(row));
         }
+        let (d, chn) = selected(&d, chn, &sel);
         let _ = tx.send(Event::Take(format!("rfx_stuck_{}_{step}", if stereo.is_some() { "stereo".into() } else { old.to_string() }),
                                     d, chn, rec.rate));
     }
@@ -499,4 +513,18 @@ fn centre(rm: &mut Remote, chans: &[u8]) -> Result<(), String> {
     rm.set(id::MULTI_PAN, 0)?;
     rm.set(id::VOICE_PAN, 0)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn saved_take_keeps_only_measured_inputs() {
+        // 4-channel take, frames [f*10+c]; measured pairs (2,3) and (2,0)
+        let d: Vec<f32> = (0..3).flat_map(|f| (0..4).map(move |c| (f * 10 + c) as f32)).collect();
+        let (k, n) = selected(&d, 4, &[2, 3, 2, 0, 9]);
+        assert_eq!(n, 3);
+        assert_eq!(k, vec![2.0, 3.0, 0.0, 12.0, 13.0, 10.0, 22.0, 23.0, 20.0]);
+    }
 }
