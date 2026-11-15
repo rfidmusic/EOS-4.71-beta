@@ -99,3 +99,130 @@ Recordings in `recordings/issue11/` (local). Tester's own bank: preset 000 a mon
 Issue #10 (same tester, main pan via Sub 1, build 4): full range and centre 0.00 dB on voice Pan, Multimode Pan
 and CC10, matching our hardware. Steps either side of centre differ by one table step (−8: +1.51, +8: −1.89 dB;
 CC 65: −0.37 dB), from the −64..+63 index offset.
+
+## Control run without an RFX card (Tony's E4, build 4, app 0.4.4; 2026-11-14)
+`--tests rfx --program 4 --stuck-program 4 --no-load`, preset 004 "RFX Pan Sine" sent over MIDI, Main out to
+Quantum 2626 inputs 19/20. 128-note fills at Pan −64 and +63, then 16 notes at Pan 0 each.
+- All 32 notes: attack (first 5 ms) and steady L−R 0.00 dB (attack about −41 dB, steady −40.24 dB). No lean, no stuck pan.
+- Probe: orphan counters 0/0/0; voice slots read unused, as expected without a card.
+- So on the main chip pan path (no RFX), build 4 shows none of the attack lean seen in #11 (build 4 + RFX) and
+  #13 (4.70, card unknown). #13's lean therefore comes from an RFX card or from 4.70 itself; jenlun's answer and
+  build 4 re-run decide which.
+
+## Code review after the control run (2026-11-14, Ghidra read-only; decompiles checked by hand at the key lines)
+- `0x10E280` writes the chip volume, then all 4 sends. It writes both words of each send back to back, with no
+  queue and no skip.
+  - Word 0 = `0x10E794[(pan+64)^0x7F]`, which is L; word 1 is R.
+  - Note-on writes (flag 1 or 2) set bit 15 (0x8000). Tick writes (`0x60B7C`, flag 0) leave it clear.
+- `0x10E228` (called only from `0x60334`) invalidates the caches so that a match is impossible: pan 0xFF7F, which the
+  −64..63 clamp can never produce, and levels 0xFFFF. It also invalidates the stereo partner block.
+- `0x1948F4` runs every start callback (down to `0x10E280`) before any key-on (`0x95F2C`). No queueing gap, and no
+  L/R swap in the code. Build 4 changes only the `0x10E794` data.
+- Release/steal (`0x194C20` → `0x10DD04` → `0x10E970`) ramps the chip volume to 0 and never touches the sends.
+- Register map `0x10E404`: even voices at 0x2xxx and odd voices at 0x0xxx (possibly the two R-Chips). `0x10E120`
+  stores a second pointer at block+0x3E (base+0x200); no user of it was found in the RFX module.
+- Card side: the per-voice sends look like FPGA or summing hardware; the RFXMixer DSP only sees 24 bus inputs. The
+  only ramp found is the plugin parameter glide `0x163D48`.
+
+**Leading explanation:** the card applies send writes about one 32-sample block late, so a voice's first block plays at
+its channel's previous gains.
+- Fits #11: a clean 33-sample step with one side silent and the other at the old hard-pan gain.
+- Fits #13: under the 4.70 law the near side is 0 dB against −7.5 dB at centre, which averages to about 3–5 dB over
+  5 ms.
+- Fits the control run: the main chip applies its pan at once.
+
+**#11's "reversed" direction:** the +63 fill reached only 73 of 128 channels. Missed channels still held −64 from the
+first phase, which gives L loud and R silent. So it is probably stale channels, not an L/R swap (medium-high
+confidence).
+
+**Fix ranking changes:** clearing the sends at voice end (old fix A) would turn the stale pan into a silent first block
+on both sides. The better fix is to wait 2 card blocks (about 1.4 ms) between the start callbacks and key-on in
+`0x1948F4`, only when the RFX is present (`0x10004D88`).
+
+**Tests:**
+1. Level-only test: send 1 at 0%, then at 100%, at a fixed pan. A silent first block confirms the late latch without
+   involving the pan code.
+2. Build with the key-on delay.
+3. Log each test note's channel and its pan cache (probe 64+n).
+4. Bit-15 experiment.
+
+## Card-side review: where the send words land (2026-11-14)
+- **Location:** the per-voice RFX send words are **not** RFX card registers. They are in the main voice-chip register
+  window.
+  - Base `0x10004D78` = `0x08200000` (128 voices or RFX flag `0x100005F6`; otherwise `0x08204000`). It is set by
+    `0x2A36C` → `0x10D980`.
+  - Each voice's chip registers (`0x10EC0A[v]`) and its send words (`0x10E404[v]`, offsets 0x800–0xBB0) sit in the same
+    8 KB block for all 128 voices. Checked against the binary.
+  - The card's own windows are elsewhere: FPGA config `0x02504001`, status `0x02500000`, R-Chip DSPs
+    `0x08300000` / `0x08304000`.
+- **No code latches or ramps the sends:**
+  - RFXMixer DSP code takes buses that are already summed, and has no per-voice gains, block copy or ramp.
+  - The FPGA (FLEX EPF6016, 32,385 bytes at `0x1149A4`) can't be decoded, and the sends don't go to it anyway.
+  - Bit 15 is set only at note-on by `0x10E280`; nothing reads it.
+  - block+0x3E (base+0x200) is a dead field: it lands on another voice's sends for 64 voices.
+- **No sync:** EOS never syncs key-on to the mixer frame. Amp registers have an "apply now" command (+0x46=1); send
+  words have none.
+- **Conclusion (inference, medium-high):** the one-frame staleness is inside the voice/mixer chip. It picks up send
+  gains once per ~32-sample frame, so the first frame of a new voice is summed with the previous sends. The main pan
+  path is clean because +0x46 applies it at once (control run).
+- **Tests and patches that follow:**
+  1. Stale length over many notes. If it spreads over 1–33 samples, the chip latches per frame and key-on is
+     unsynced; a constant 33 means a fixed latency.
+  2. Bit-15 builds.
+  3. Fix candidate: a busy-wait of at least 2 frames (~1.4 ms) between the start callbacks and key-on in `0x1948F4`,
+     only when RFX is fitted (`0x10004D88`).
+  4. Log each test note's channel and its group (`ec0a[v]>>13`).
+
+## Card control registers and what the RFX flag changes (2026-11-14)
+**`0x02500000` (control, read-modify-write):**
+- Bits 0–2 (+4) select a port for the per-chip-group config word at `0x08207FFE` (`0x10DD88`). It is written at boot
+  only (`0x10E1D4`): ports 0,1 = 0x114, ports 2,3 = 0x14. Bit meanings are unknown.
+- Bit 3: before R-Chip init (`0x2A3CC`).
+- Bit 7: input-card pulse.
+- Bits 4–5: ADAT sampling source.
+- Bit 8: acknowledge for the status bit 4 poll (`0x4CA40`).
+
+**`0x02500002` (status, read only):**
+- Bit 1: input card. Bit 2: output card. Bit 3: output mode.
+- Bit 4: polled from a background task (probably clock lock). Not a frame flag.
+
+**`0x02500004`:** per-channel-pair source mux for voice channels 0–15 (table `0x19245C`), written per note by the
+allocator `0x191AC0`. Card audio can replace those channels. It plays no part in gain timing.
+
+**`0x02504001`:** FPGA configuration, boot only.
+
+**DSP hooks `0x10006488..A0`:** GPR, program and TRAM upload only.
+
+**Card detect:** `0x100005F6` = bit 0x8000 of `0x02300000` AND a successful FPGA load. What the flag turns on:
+- base `0x08200000`, even on 64-voice units;
+- 128 channels (voices 0–63 are dummies on 64-voice units);
+- extra chip config bit 0x0202 on pages 0 and 2 only;
+- the send-word code;
+- the mux;
+- R-Chip init.
+
+Without the RFX nothing writes offsets 0x800–0xBBF.
+
+**Conclusion:** on 128-voice units the sends are voice-chip registers (high confidence). On 64-voice units with an
+RFX, channels 0–63 may be served by the card (open, does not affect the Platinum reports).
+
+**Answers:**
+- No voice-mixer frame or sync flag exists.
+- No mode bit makes sends apply immediately. Untested: the 0x114/0x14 config word bits, and send-word bit 15.
+- Time base for a key-on delay: the R-Chip sample counter at `0x08300054` (`0x16C254`:
+  `(period-1) - (*(ctx+0x54) & 0xFFFFF)`; inferred to count samples). Wait at least 64 samples between the start
+  callbacks and key-on in `0x1948F4`, only when `0x10004D88` is set.
+
+## Issue #14 (jenlun, E6400 Ultra + RFX, build 4): the lean is a glide, not a stale frame (2026-11-14)
+
+- Data: tester-data/issue14-jenlun (32 rfx_stuck WAVs, 48 kHz float, inputs 1/2 = main out).
+- I measured attack L-R in 16-sample blocks after onset (scratchpad lean.py/shape.py). Every note, both directions:
+  +70, +46, +31, +16, +11, +7, +5, +2.4 dB (blocks 0..7), then about 1.4 dB at 128 smp, about 0.45 at 160, and 0 by about 224 smp (4.7 ms).
+- Spread across 32 notes: under 3 dB in block 0 and under 1 dB later. The curve is deterministic.
+- Shape: the old pan holds fully for about the first 0.5 ms, then the gain moves toward the new pan with a time constant of about 40 samples. It settles in about 4.5 ms.
+- So the RFX send gain is **smoothed (ramped) from its previous value**. That is not consistent with a single 32-sample frame latch. The non-RFX main path shows no lean (control run).
+- Fix consequence: a 64-sample key-on delay is too short. Options:
+  - (a) Delay key-on about 5 ms (240 smp at 48 kHz, timed with the R-Chip counter `0x16C254`) only when the channel's cached pan differs from the new pan. The cache comes from `0x10E280`.
+  - (b) Write the sends to the new note's values as early as possible (at voice allocation).
+  - (c) Accept it: the lean is under 5 ms.
+- Multimode Pan / CC10 flat on #13 and #14: `0x609D8` adds channel pan (+0x62) only when the mode byte `0x10004F04 == 2` (Multi). The same code runs with and without RFX (`0x60784` vs `0x60674`). Likely cause: the tester's E4 is not in Multi MIDI mode. Asked in the #14 reply draft (not posted).
